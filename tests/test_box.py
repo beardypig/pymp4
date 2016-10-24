@@ -19,7 +19,7 @@ class BoxTests(unittest.TestCase):
         self.assertEqual(
             Box.build(dict(
                 type=b"ftyp",
-                major_brand="iso5",
+                major_brand=b"iso5",
                 minor_version=1,
-                compatible_brands=["iso5", "avc1"])),
+                compatible_brands=[b"iso5", b"avc1"])),
             b'\x00\x00\x00\x18ftypiso5\x00\x00\x00\x01iso5avc1')
