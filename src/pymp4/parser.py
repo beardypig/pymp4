@@ -15,9 +15,12 @@
    limitations under the License.
 """
 import logging
+from uuid import UUID
+
 from construct import *
 import construct.core
 from construct.lib import *
+from binascii import hexlify, unhexlify
 
 log = logging.getLogger(__name__)
 
@@ -468,6 +471,37 @@ SegmentIndexBox = Struct(
     ))
 )
 
+SampleAuxiliaryInformationSizesBox = Struct(
+    "type" / Const(b"saiz"),
+    "version" / Const(Int8ub, 0),
+    "flags" / BitStruct(
+        Padding(23),
+        "has_aux_info_type" / Flag,
+    ),
+    # Optional fields
+    "aux_info_type" / If(this.flags.has_aux_info_type, Int32ub),
+    "aux_info_type_parameter" / If(this.flags.has_aux_info_type, Int32ub),
+    "default_sample_info_size" / Int8ub,
+    "sample_count" / Int32ub,
+    # only if sample default_sample_info_size is 0
+    "sample_info_sizes" / If(this.default_sample_info_size == 0,
+                             Array(this.sample_count, Int8ub))
+)
+
+SampleAuxiliaryInformationOffsetsBox = Struct(
+    "type" / Const(b"saio"),
+    "version" / Int8ub,
+    "flags" / BitStruct(
+        Padding(23),
+        "has_aux_info_type" / Flag,
+    ),
+    # Optional fields
+    "aux_info_type" / If(this.flags.has_aux_info_type, Int32ub),
+    "aux_info_type_parameter" / If(this.flags.has_aux_info_type, Int32ub),
+    # Short offsets in version 0, long in version 1
+    "offsets" / PrefixedArray(Int32ub, Switch(this.version, {0: Int32ub, 1: Int64ub}))
+)
+
 # Movie data box
 
 MovieDataBox = Struct(
@@ -483,6 +517,51 @@ SoundMediaHeaderBox = Struct(
     "flags" / Const(Int24ub, 0),
     "balance" / Default(Int16sb, 0),
     Padding(2, pattern=b"\x00")
+)
+
+
+# DASH Boxes
+
+class DASHUUID(Adapter):
+    def _decode(self, obj, context):
+        return UUID(bytes=obj)
+
+    def _encode(self, obj, context):
+        return obj.bytes
+
+
+ProtectionSystemHeaderBox = Struct(
+    "type" / Const(b"pssh"),
+    "version" / Const(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    "system_ID" / DASHUUID(Bytes(16)),
+    "private_data" / Prefixed(Int32ub, GreedyBytes)
+)
+
+TrackEncryptionBox = Struct(
+    "type" / Const(b"tenc"),
+    "version" / Const(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    Padding(4),
+    "key_ID" / DASHUUID(Bytes(16))
+)
+
+SampleEncryptionBox = Struct(
+    "type" / Const(b"senc"),
+    "version" / Const(Int8ub, 0),
+    "flags" / BitStruct(
+        Padding(22),
+        "has_subsample_encryption_info" / Flag,
+        Padding(1)
+    ),
+    "sample_encryption_info" / PrefixedArray(Int32ub, Struct(
+            "iv" / Bytes(8),
+            # include the sub sample encryption information
+            "subsample_encryption_info" / If(this._.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
+                    "clear" / Int16ub,
+                    "encryped" / Int32ub
+            )))
+        ))
 )
 
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
@@ -525,7 +604,13 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"stco": ChunkOffsetBox,
         b"co64": ChunkLargeOffsetBox,
         b"smhd": SoundMediaHeaderBox,
-        b"sidx": SegmentIndexBox
+        b"sidx": SegmentIndexBox,
+        b"saiz": SampleAuxiliaryInformationSizesBox,
+        b"saio": SampleAuxiliaryInformationOffsetsBox,
+        # dash
+        b"tenc": TrackEncryptionBox,
+        b"pssh": ProtectionSystemHeaderBox,
+        b"senc": SampleEncryptionBox,
     }, default=RawBox)),
 ))
 

@@ -22,7 +22,9 @@ setup(name="pymp4",
       license="Apache 2.0",
       packages=packages,
       package_dir={"": "src"},
-      entry_points={},
+      entry_points={
+          "console_scripts": ["mp4dump=pymp4.cli:dump"]
+      },
       install_requires=deps,
       test_suite="tests",
       classifiers=["Development Status :: 3 - Alpha",
