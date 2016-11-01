@@ -37,24 +37,24 @@ class BoxTests(unittest.TestCase):
 
     def test_find(self):
         self.assertListEqual(
-            list(BoxUtil.find(self.box_data, "b   ")),
+            list(BoxUtil.find(self.box_data, b"b   ")),
             [Container(type=b"b   ")(id=2), Container(type=b"b   ")(id=4)]
         )
 
     def test_find_empty(self):
         self.assertListEqual(
-            list(BoxUtil.find(self.box_data, "f   ")),
+            list(BoxUtil.find(self.box_data, b"f   ")),
             []
         )
 
     def test_first(self):
         self.assertEqual(
-            BoxUtil.first(self.box_data, "b   "),
+            BoxUtil.first(self.box_data, b"b   "),
             Container(type=b"b   ")(id=2)
         )
 
     def test_first_missing(self):
         self.assertRaises(
             BoxNotFound,
-            BoxUtil.first, self.box_data, "f   ",
+            BoxUtil.first, self.box_data, b"f   ",
         )
