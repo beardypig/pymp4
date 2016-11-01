@@ -20,7 +20,6 @@ from uuid import UUID
 from construct import *
 import construct.core
 from construct.lib import *
-from binascii import hexlify, unhexlify
 
 log = logging.getLogger(__name__)
 
@@ -95,7 +94,7 @@ SegmentTypeBox = Struct(
     "compatible_brands" / GreedyRange(String(4)),
 )
 
-# Catch all boxes
+# Catch find boxes
 
 RawBox = Struct(
     "type" / String(4, padchar=b" ", paddir="right"),
@@ -367,10 +366,10 @@ TrackFragmentBaseMediaDecodeTimeBox = Struct(
 
 TrackSampleFlags = BitStruct(
     Padding(4),
-    #"is_leading" / BitsInteger(2),
-    #"sample_depends_on" / BitsInteger(2),
-    #"sample_is_depended_on" / BitsInteger(2),
-    #"sample_has_redundancy" / BitsInteger(2),
+    # "is_leading" / BitsInteger(2),
+    # "sample_depends_on" / BitsInteger(2),
+    # "sample_is_depended_on" / BitsInteger(2),
+    # "sample_has_redundancy" / BitsInteger(2),
     "is_leading" / Enum(BitsInteger(2), UNKNOWN=0, LEADINGDEP=1, NOTLEADING=2, LEADINGNODEP=3, default=0),
     "sample_depends_on" / Enum(BitsInteger(2), UNKNOWN=0, DEPENDS=1, NOTDEPENDS=2, RESERVED=3, default=0),
     "sample_is_depended_on" / Enum(BitsInteger(2), UNKNOWN=0, NOTDISPOSABLE=1, DISPOSABLE=2, RESERVED=3, default=0),
@@ -522,7 +521,7 @@ SoundMediaHeaderBox = Struct(
 
 # DASH Boxes
 
-class DASHUUID(Adapter):
+class UUIDBytes(Adapter):
     def _decode(self, obj, context):
         return UUID(bytes=obj)
 
@@ -532,18 +531,22 @@ class DASHUUID(Adapter):
 
 ProtectionSystemHeaderBox = Struct(
     "type" / Const(b"pssh"),
-    "version" / Const(Int8ub, 0),
+    "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
     "flags" / Const(Int24ub, 0),
-    "system_ID" / DASHUUID(Bytes(16)),
-    "private_data" / Prefixed(Int32ub, GreedyBytes)
+    "system_ID" / UUIDBytes(Bytes(16)),
+    "key_IDs" / Default(If(this.version == 1,
+                           PrefixedArray(Int32ub, UUIDBytes(Bytes(16)))),
+                        None),
+    "init_data" / Prefixed(Int32ub, GreedyBytes)
 )
 
 TrackEncryptionBox = Struct(
     "type" / Const(b"tenc"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    Padding(4),
-    "key_ID" / DASHUUID(Bytes(16))
+    "is_encrypted" / Int24ub,
+    "iv_size" / Int8ub,
+    "key_ID" / UUIDBytes(Bytes(16))
 )
 
 SampleEncryptionBox = Struct(
@@ -555,13 +558,13 @@ SampleEncryptionBox = Struct(
         Padding(1)
     ),
     "sample_encryption_info" / PrefixedArray(Int32ub, Struct(
-            "iv" / Bytes(8),
-            # include the sub sample encryption information
-            "subsample_encryption_info" / If(this._.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
-                    "clear" / Int16ub,
-                    "encryped" / Int32ub
-            )))
-        ))
+        "iv" / Bytes(8),
+        # include the sub sample encryption information
+        "subsample_encryption_info" / If(this._.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
+            "clear_bytes" / Int16ub,
+            "cipher_bytes" / Int32ub
+        )))
+    ))
 )
 
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
