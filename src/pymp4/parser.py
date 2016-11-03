@@ -570,6 +570,7 @@ SampleEncryptionBox = Struct(
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
 Box = PrefixedIncludingSize(Int32ub, Struct(
+    "_offset" / Tell, "offset" / Computed(this._offset - 4),
     "type" / Peek(String(4, padchar=b" ", paddir="right")),
     Embedded(Switch(this.type, {
         b"ftyp": FileTypeBox,
