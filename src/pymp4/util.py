@@ -45,10 +45,9 @@ class BoxUtil(object):
 
     @classmethod
     def find(cls, box, type_):
-        if hasattr(box, "children"):
+        if box.type == type_:
+            yield box
+        elif hasattr(box, "children"):
             for sbox in box.children:
                 for fbox in cls.find(sbox, type_):
                     yield fbox
-        elif box.type == type_:
-            yield box
-

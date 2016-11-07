@@ -27,7 +27,12 @@ class BoxTests(unittest.TestCase):
     def test_ftyp_parse(self):
         self.assertEqual(
             Box.parse(b'\x00\x00\x00\x18ftypiso5\x00\x00\x00\x01iso5avc1'),
-            Container(_offset=4)(offset=0)(type=b"ftyp")(major_brand=b"iso5")(minor_version=1)(compatible_brands=[b"iso5", b"avc1"])
+            Container(offset=0)
+            (type=b"ftyp")
+            (major_brand=b"iso5")
+            (minor_version=1)
+            (compatible_brands=[b"iso5", b"avc1"])
+            (end=24)
         )
 
     def test_ftyp_build(self):

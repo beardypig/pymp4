@@ -569,8 +569,24 @@ SampleEncryptionBox = Struct(
 
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
+
+class TellMinusSizeOf(Subconstruct):
+    def __init__(self, subcon):
+        super(TellMinusSizeOf, self).__init__(subcon)
+        self.flagbuildnone = True
+
+    def _parse(self, stream, context, path):
+        return stream.tell() - self.subcon.sizeof(context)
+
+    def _build(self, obj, stream, context, path):
+        return stream.tell() - self.subcon.sizeof(context)
+
+    def sizeof(self, context=None, **kw):
+        return 0
+
+
 Box = PrefixedIncludingSize(Int32ub, Struct(
-    "_offset" / Tell, "offset" / Computed(this._offset - 4),
+    "offset" / TellMinusSizeOf(Int32ub),
     "type" / Peek(String(4, padchar=b" ", paddir="right")),
     Embedded(Switch(this.type, {
         b"ftyp": FileTypeBox,
@@ -616,6 +632,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
     }, default=RawBox)),
+    "end" / Tell
 ))
 
 ContainerBox = Struct(

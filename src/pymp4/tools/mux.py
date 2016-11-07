@@ -19,6 +19,7 @@ import io
 from collections import defaultdict
 from operator import itemgetter
 from construct import Container
+from pymp4.exceptions import BoxNotFound
 
 from pymp4.parser import Box
 from pymp4.util import BoxUtil
@@ -108,20 +109,24 @@ class MP4Muxer(object):
             moov = self.moovs[sid]
 
             # find the trak boxes with the desired track id
-            traks = filter(lambda t: BoxUtil.first(t, b"tkhd").track_ID == tid, BoxUtil.find(moov, b"trak"))
+            traks = []
+            for trak in BoxUtil.find(moov, b"trak"):
+                if BoxUtil.first(trak, b"tkhd").track_ID == tid:
+                    traks.append(trak)
+
             if len(traks) == 1:
                 for trak in traks:
-                    trak.children[0].track_ID = otid
+                    BoxUtil.first(trak, b"tkhd").track_ID = otid
                     final_trak.append(trak)
             else:
-               raise Exception("Found {} trak boxes in the moov box for stream: {}".format(len(traks), sid))
+                raise Exception("Found {} trak boxes in the moov box for stream: {}".format(len(traks), sid))
 
             # from this stream, extract the tracks that are wanted
             mvhd = BoxUtil.first(moov, b"mvhd")
             iods = BoxUtil.first(moov, b"iods")
             # look in the moov box and filter out the trak boxes that match the desired track id
-            mvex = BoxUtil.first(moov, b"mvex")
-            if mvex:
+            try:
+                mvex = BoxUtil.first(moov, b"mvex")
                 # remap trex.track_ID from input tid to output tid
                 trexes = filter(lambda t: t.track_ID == tid, BoxUtil.find(mvex, b"trex"))
                 if len(trexes) == 1:
@@ -130,6 +135,9 @@ class MP4Muxer(object):
                         final_trex.append(trex)
                 else:
                     raise Exception("Found {} trex boxes in the mvex box for stream: {}".format(len(trexes), sid))
+            except BoxNotFound:
+                # no mvex box to update
+                pass
 
 
         mvhd.next_track_ID = len(self.output_tracks) + 1

@@ -33,12 +33,28 @@ class BoxTests(unittest.TestCase):
                 Container(type=b"a   ")(id=3),
                 Container(type=b"b   ")(id=4),
             ]),
+            Container(type=b"d   ")(id=5),
         ])
 
     def test_find(self):
         self.assertListEqual(
             list(BoxUtil.find(self.box_data, b"b   ")),
             [Container(type=b"b   ")(id=2), Container(type=b"b   ")(id=4)]
+        )
+
+    def test_find_after_nest(self):
+        self.assertListEqual(
+            list(BoxUtil.find(self.box_data, b"d   ")),
+            [Container(type=b"d   ")(id=5)]
+        )
+
+    def test_find_nested_type(self):
+        self.assertListEqual(
+            list(BoxUtil.find(self.box_data, b"c   ")),
+            [Container(type=b"c   ")(children=[
+                Container(type=b"a   ")(id=3),
+                Container(type=b"b   ")(id=4),
+            ])]
         )
 
     def test_find_empty(self):

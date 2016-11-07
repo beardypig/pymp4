@@ -28,7 +28,14 @@ class BoxTests(unittest.TestCase):
     def test_tenc_parse(self):
         self.assertEqual(
             Box.parse(b'\x00\x00\x00 tenc\x00\x00\x00\x00\x00\x00\x01\x083{\x96C!\xb6CU\x9eY>\xcc\xb4l~\xf7'),
-            Container(_offset=4)(offset=0)(type=b"tenc")(version=0)(flags=0)(is_encrypted=1)(iv_size=8)(key_ID=UUID('337b9643-21b6-4355-9e59-3eccb46c7ef7'))
+            Container(offset=0)
+            (type=b"tenc")
+            (version=0)
+            (flags=0)
+            (is_encrypted=1)
+            (iv_size=8)
+            (key_ID=UUID('337b9643-21b6-4355-9e59-3eccb46c7ef7'))
+            (end=32)
         )
 
     def test_tenc_build(self):
