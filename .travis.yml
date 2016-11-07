@@ -6,6 +6,9 @@ matrix:
   - python: '3.3'
   - python: '3.4'
   - python: '3.5'
+  - python: '3.6-dev'
+  allow_failures:
+    - python: '3.6-dev'
 before_install:
 - pip install pytest pytest-cov codecov coverage
 install:
