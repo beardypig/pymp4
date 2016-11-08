@@ -43,3 +43,63 @@ class BoxTests(unittest.TestCase):
                 minor_version=1,
                 compatible_brands=[b"iso5", b"avc1"])),
             b'\x00\x00\x00\x18ftypiso5\x00\x00\x00\x01iso5avc1')
+
+    def test_mdhd_parse(self):
+        self.assertEqual(
+            Box.parse(
+                b'\x00\x00\x00\x20mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0fB@\x00\x00\x00\x00U\xc4\x00\x00'),
+            Container(offset=0)
+            (type=b"mdhd")(version=0)(flags=0)
+            (creation_time=0)
+            (modification_time=0)
+            (timescale=1000000)
+            (duration=0)
+            (language="und")
+            (end=32)
+        )
+
+    def test_mdhd_build(self):
+        mdhd_data = Box.build(dict(
+            type=b"mdhd",
+            creation_time=0,
+            modification_time=0,
+            timescale=1000000,
+            duration=0,
+            language=u"und"))
+        self.assertEqual(len(mdhd_data), 32)
+        self.assertEqual(mdhd_data,
+                         b'\x00\x00\x00\x20mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0fB@\x00\x00\x00\x00U\xc4\x00\x00')
+
+        mdhd_data64 = Box.build(dict(
+            type=b"mdhd",
+            version=1,
+            creation_time=0,
+            modification_time=0,
+            timescale=1000000,
+            duration=0,
+            language=u"und"))
+        self.assertEqual(len(mdhd_data64), 48)
+        self.assertEqual(mdhd_data64,
+                         b'\x00\x00\x00\x30mdhd\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0fB@\x00\x00\x00\x00\x00\x00\x00\x00U\xc4\x00\x00')
+
+    def test_moov_build(self):
+        moov = \
+            Container(type=b"moov")(children=[  # 96 bytes
+                Container(type=b"mvex")(children=[  # 88 bytes
+                    Container(type=b"mehd")(version=0)(flags=0)(fragment_duration=0),  # 16 bytes
+                    Container(type=b"trex")(track_ID=1),  # 32 bytes
+                    Container(type=b"trex")(track_ID=2),  # 32 bytes
+                ])
+            ])
+
+        moov_data = Box.build(moov)
+
+        self.assertEqual(len(moov_data), 96)
+        self.assertEqual(
+            moov_data,
+            b'\x00\x00\x00\x60moov'
+            b'\x00\x00\x00\x58mvex'
+            b'\x00\x00\x00\x10mehd\x00\x00\x00\x00\x00\x00\x00\x00'
+            b'\x00\x00\x00\x20trex\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+            b'\x00\x00\x00\x20trex\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        )

@@ -179,15 +179,15 @@ TrackHeaderBox = Struct(
 
 class ISO6392TLanguageCode(Adapter):
     def _decode(self, obj, context):
-        return ''.join(map(lambda c: chr(c + 0x60), obj))
+        return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
 
     def _encode(self, obj, context):
-        return map(lambda c: ord(c) - 0x60, obj)
+        return [c - 0x60 for c in bytearray(obj.encode("utf8"))]
 
 
 MediaHeaderBox = Struct(
     "type" / Const(b"mdhd"),
-    "version" / Int8ub,
+    "version" / Default(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "creation_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
@@ -366,17 +366,13 @@ TrackFragmentBaseMediaDecodeTimeBox = Struct(
 
 TrackSampleFlags = BitStruct(
     Padding(4),
-    # "is_leading" / BitsInteger(2),
-    # "sample_depends_on" / BitsInteger(2),
-    # "sample_is_depended_on" / BitsInteger(2),
-    # "sample_has_redundancy" / BitsInteger(2),
-    "is_leading" / Enum(BitsInteger(2), UNKNOWN=0, LEADINGDEP=1, NOTLEADING=2, LEADINGNODEP=3, default=0),
-    "sample_depends_on" / Enum(BitsInteger(2), UNKNOWN=0, DEPENDS=1, NOTDEPENDS=2, RESERVED=3, default=0),
-    "sample_is_depended_on" / Enum(BitsInteger(2), UNKNOWN=0, NOTDISPOSABLE=1, DISPOSABLE=2, RESERVED=3, default=0),
-    "sample_has_redundancy" / Enum(BitsInteger(2), UNKNOWN=0, REDUNDANT=1, NOTREDUNDANT=2, RESERVED=3, default=0),
-    "sample_padding_value" / BitsInteger(3),
-    "sample_is_non_sync_sample" / Flag,
-    "sample_degradation_priority" / BitsInteger(16),
+    "is_leading" / Default(Enum(BitsInteger(2), UNKNOWN=0, LEADINGDEP=1, NOTLEADING=2, LEADINGNODEP=3, default=0), 0),
+    "sample_depends_on" / Default(Enum(BitsInteger(2), UNKNOWN=0, DEPENDS=1, NOTDEPENDS=2, RESERVED=3, default=0), 0),
+    "sample_is_depended_on" / Default(Enum(BitsInteger(2), UNKNOWN=0, NOTDISPOSABLE=1, DISPOSABLE=2, RESERVED=3, default=0), 0),
+    "sample_has_redundancy" / Default(Enum(BitsInteger(2), UNKNOWN=0, REDUNDANT=1, NOTREDUNDANT=2, RESERVED=3, default=0), 0),
+    "sample_padding_value" / Default(BitsInteger(3), 0),
+    "sample_is_non_sync_sample" / Default(Flag, False),
+    "sample_degradation_priority" / Default(BitsInteger(16), 0),
 )
 
 TrackRunBox = Struct(
@@ -444,10 +440,10 @@ TrackExtendsBox = Struct(
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "track_ID" / Int32ub,
-    "default_sample_description_index" / Int32ub,
-    "default_sample_duration" / Int32ub,
-    "default_sample_size" / Int32ub,
-    "default_sample_flags" / TrackSampleFlags,
+    "default_sample_description_index" / Default(Int32ub, 0),
+    "default_sample_duration" / Default(Int32ub, 0),
+    "default_sample_size" / Default(Int32ub, 0),
+    "default_sample_flags" / Default(TrackSampleFlags, Container()),
 )
 
 SegmentIndexBox = Struct(
@@ -579,7 +575,7 @@ class TellMinusSizeOf(Subconstruct):
         return stream.tell() - self.subcon.sizeof(context)
 
     def _build(self, obj, stream, context, path):
-        return stream.tell() - self.subcon.sizeof(context)
+        return b""
 
     def sizeof(self, context=None, **kw):
         return 0

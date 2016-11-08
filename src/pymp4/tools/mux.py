@@ -136,13 +136,14 @@ class MP4Muxer(object):
                 else:
                     raise Exception("Found {} trex boxes in the mvex box for stream: {}".format(len(trexes), sid))
             except BoxNotFound:
-                # no mvex box to update
-                pass
-
+                # create an appropriate trex box
+                final_trex.append(
+                    dict(type=b"trex", track_ID=otid)
+                )
 
         mvhd.next_track_ID = len(self.output_tracks) + 1
 
-
+        # write out the header with the tracks for each stream combined
         Box.build_stream(dict(
             type=b"moov",
             children=[
@@ -150,7 +151,7 @@ class MP4Muxer(object):
                 iods,
                 dict(type=b"mvex",
                      children=[
-                         Container(type=b"mehd")(version=0)(flags=0)(fragment_duration=0)
+                         dict(type=b"mehd", version=0, flags=0, fragment_duration=0)
                      ] + final_trex),
             ] + final_trak
         ), self.shadow_output)
