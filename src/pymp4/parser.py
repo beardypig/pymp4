@@ -440,7 +440,7 @@ TrackExtendsBox = Struct(
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "track_ID" / Int32ub,
-    "default_sample_description_index" / Default(Int32ub, 0),
+    "default_sample_description_index" / Default(Int32ub, 1),
     "default_sample_duration" / Default(Int32ub, 0),
     "default_sample_size" / Default(Int32ub, 0),
     "default_sample_flags" / Default(TrackSampleFlags, Container()),
