@@ -23,6 +23,8 @@ from construct.lib import *
 
 log = logging.getLogger(__name__)
 
+UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
+
 
 class PrefixedIncludingSize(Subconstruct):
     __slots__ = ["name", "lengthfield", "subcon"]
@@ -77,7 +79,6 @@ class PrefixedIncludingSize(Subconstruct):
     def _sizeof(self, context, path):
         return self.lengthfield._sizeof(context, path) + self.subcon._sizeof(context, path)
 
-
 # Header box
 
 FileTypeBox = Struct(
@@ -98,7 +99,7 @@ SegmentTypeBox = Struct(
 
 RawBox = Struct(
     "type" / String(4, padchar=b" ", paddir="right"),
-    "data" / GreedyBytes
+    "data" / Default(GreedyBytes, b"")
 )
 
 FreeBox = Struct(
@@ -115,63 +116,63 @@ SkipBox = Struct(
 
 MovieHeaderBox = Struct(
     "type" / Const(b"mvhd"),
-    "version" / Int8ub,
-    "flags" / Int24ub,
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
     Embedded(Switch(this.version, {
         1: Struct(
-            "creation_time" / Int64ub,
-            "modification_time" / Int64ub,
-            "timescale" / Int32ub,
-            "duration" / Int64ub,
+            "creation_time" / Default(Int64ub, 0),
+            "modification_time" / Default(Int64ub, 0),
+            "timescale" / Default(Int32ub, 10000000),
+            "duration" / Int64ub
         ),
         0: Struct(
-            "creation_time" / Int32ub,
-            "modification_time" / Int32ub,
-            "timescale" / Int32ub,
+            "creation_time" / Default(Int32ub, 0),
+            "modification_time" / Default(Int32ub, 0),
+            "timescale" / Default(Int32ub, 10000000),
             "duration" / Int32ub,
         ),
     })),
-    "rate" / Int32sb,
-    "volume" / Int16sb,
+    "rate" / Default(Int32sb, 65536),
+    "volume" / Default(Int16sb, 256),
     # below could be just Padding(10) but why not
     Const(Int16ub, 0),
     Const(Int32ub, 0),
     Const(Int32ub, 0),
-    "matrix" / Int32sb[9],
-    "pre_defined" / Int32ub[6],
-    "next_track_ID" / Int32ub,
+    "matrix" / Default(Int32sb[9], UNITY_MATRIX),
+    "pre_defined" / Default(Int32ub[6], [0]*6),
+    "next_track_ID" / Default(Int32ub, 0xffffffff)
 )
 
 # Track boxes, contained in trak box
 
 TrackHeaderBox = Struct(
     "type" / Const(b"tkhd"),
-    "version" / Int8ub,
-    "flags" / Int24ub,
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 1),
     Embedded(Switch(this.version, {
         1: Struct(
-            "creation_time" / Int64ub,
-            "modification_time" / Int64ub,
-            "track_ID" / Int32ub,
+            "creation_time" / Default(Int64ub, 0),
+            "modification_time" / Default(Int64ub, 0),
+            "track_ID" / Default(Int32ub, 1),
             Padding(4),
-            "duration" / Int64ub,
+            "duration" / Default(Int64ub, 0),
         ),
         0: Struct(
-            "creation_time" / Int32ub,
-            "modification_time" / Int32ub,
-            "track_ID" / Int32ub,
+            "creation_time" / Default(Int32ub, 0),
+            "modification_time" / Default(Int32ub, 0),
+            "track_ID" / Default(Int32ub, 1),
             Padding(4),
-            "duration" / Int32ub,
+            "duration" / Default(Int32ub, 0),
         ),
     })),
     Padding(8),
-    "layer" / Int16sb,
-    "alternate_group" / Int16sb,
-    "volume" / Int16sb,
+    "layer" / Default(Int16sb, 0),
+    "alternate_group" / Default(Int16sb, 0),
+    "volume" / Default(Int16sb, 0),
     Padding(2),
-    "matrix" / Array(9, Int32sb),
-    "width" / Int32ub,
-    "height" / Int32ub
+    "matrix" / Default(Array(9, Int32sb), UNITY_MATRIX),
+    "width" / Default(Int32ub, 0),
+    "height" / Default(Int32ub, 0),
 )
 
 
@@ -179,9 +180,15 @@ TrackHeaderBox = Struct(
 
 class ISO6392TLanguageCode(Adapter):
     def _decode(self, obj, context):
+        """
+        Get the python representation of the obj
+        """
         return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
 
     def _encode(self, obj, context):
+        """
+        Get the bytes representation of the obj
+        """
         return [c - 0x60 for c in bytearray(obj.encode("utf8"))]
 
 
@@ -191,7 +198,7 @@ MediaHeaderBox = Struct(
     "flags" / Const(Int24ub, 0),
     "creation_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
-    "timescale" / IfThenElse(this.version == 1, Int64ub, Int32ub),
+    "timescale" / Int32ub,
     "duration" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     Embedded(BitStruct(
         Padding(1),
@@ -218,9 +225,9 @@ VideoMediaHeaderBox = Struct(
     "flags" / Const(Int24ub, 1),
     "graphics_mode" / Default(Int16ub, 0),
     "opcolor" / Struct(
-        "red" / Int16ub,
-        "green" / Int16ub,
-        "blue" / Int16ub,
+        "red" / Default(Int16ub, 0),
+        "green" / Default(Int16ub, 0),
+        "blue" / Default(Int16ub, 0),
     ),
 )
 
@@ -246,17 +253,74 @@ DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
 DataReferenceBox = Struct(
     "type" / Const(b"dref"),
     "version" / Const(Int8ub, 0),
-    "flags" / Int24ub,
+    "flags" / Default(Int24ub, 0),
     "data_entries" / PrefixedArray(Int32ub, Select(DataEntryUrnBox, DataEntryUrlBox)),
 )
 
 # Sample Table boxes (stbl)
 
+MP4ASampleEntryBox = Struct(
+    "version" / Default(Int16ub, 0),
+    "revision" / Const(Int16ub, 0),
+    "vendor" / Const(Int32ub, 0),
+    "channels" / Default(Int16ub, 2),
+    "bits_per_sample" / Default(Int16ub, 16),
+    "compression_id" / Default(Int16sb, 0),
+    "packet_size" / Const(Int16ub, 0),
+    "sampling_rate" / Int16ub,
+    Padding(2)
+)
+
+
+class MaskedInteger(Adapter):
+    def _decode(self, obj, context):
+        return obj & 0x1F
+
+    def _encode(self, obj, context):
+        return obj & 0x1F
+
+
+AVC1SampleEntryBox = Struct(
+    "version" / Default(Int16ub, 0),
+    "revision" / Const(Int16ub, 0),
+    "vendor" / Default(String(4, padchar=b" "), b"brdy"),
+    "temporal_quality" / Default(Int32ub, 0),
+    "spatial_quality" / Default(Int32ub, 0),
+    "width" / Int16ub,
+    "height" / Int16ub,
+    "horizontal_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
+    Padding(2),
+    "vertical_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
+    Padding(2),
+    "data_size" / Const(Int32ub, 0),
+    "frame_count" / Default(Int16ub, 1),
+    "compressor_name" / Default(String(32, padchar=b" "), ""),
+    "depth" / Default(Int16ub, 24),
+    "color_table_id" / Default(Int16sb, -1),
+    "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
+        "type" / Const(b"avcC"),
+        "version" / Const(Int8ub, 1),
+        "profile" / Int8ub,
+        "compatibility" / Int8ub,
+        "level" / Int8ub,
+        EmbeddedBitStruct(
+            Padding(6, pattern='\x01'),
+            "nal_unit_length_field" / Default(BitsInteger(2), 3),
+        ),
+        "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
+        "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), [])
+    ))
+)
+
+
 SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     "format" / String(4, padchar=b" ", paddir="right"),
     Padding(6, pattern=b"\x00"),
-    "data_reference_index" / Int16ub,
-    "data" / GreedyBytes
+    "data_reference_index" / Default(Int16ub, 1),
+    Embedded(Switch(this.format, {
+        b"mp4a": MP4ASampleEntryBox,
+        b"avc1": AVC1SampleEntryBox
+    }, "data" / GreedyBytes))
 ))
 
 BitRateBox = Struct(
@@ -268,9 +332,9 @@ BitRateBox = Struct(
 
 SampleDescriptionBox = Struct(
     "type" / Const(b"stsd"),
-    "version" / Int8ub,
+    "version" / Default(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, SampleEntryBox)
+    "entries" / PrefixedArray(Int32ub, SampleEntryBox),
 )
 
 SampleSizeBox = Struct(
@@ -304,39 +368,39 @@ TimeToSampleBox = Struct(
     "type" / Const(b"stts"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, Struct(
+    "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_count" / Int32ub,
         "sample_delta" / Int32ub,
-    ))
+    )), [])
 )
 
 SyncSampleBox = Struct(
     "type" / Const(b"stss"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, Struct(
+    "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_number" / Int32ub,
-    ))
+    )), [])
 )
 
 SampleToChunkBox = Struct(
     "type" / Const(b"stsc"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, Struct(
+    "entries" / Default(PrefixedArray(Int32ub, Struct(
         "first_chunk" / Int32ub,
         "samples_per_chunk" / Int32ub,
         "sample_description_index" / Int32ub,
-    ))
+    )), [])
 )
 
 ChunkOffsetBox = Struct(
     "type" / Const(b"stco"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, Struct(
+    "entries" / Default(PrefixedArray(Int32ub, Struct(
         "chunk_offset" / Int32ub,
-    ))
+    )), [])
 )
 
 ChunkLargeOffsetBox = Struct(
@@ -510,8 +574,7 @@ SoundMediaHeaderBox = Struct(
     "type" / Const(b"smhd"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "balance" / Default(Int16sb, 0),
-    Padding(2, pattern=b"\x00")
+    "balance" / Default(Int16sb, 0)
 )
 
 
