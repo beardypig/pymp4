@@ -175,6 +175,35 @@ TrackHeaderBox = Struct(
     "height" / Default(Int32ub, 0),
 )
 
+HDSSegmentBox = Struct(
+    "type" / Const(b"abst"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 1),
+    "info_version" / Int32ub,
+    "flags2" / Int8ub,
+    "time_scale" / Int32ub,
+    "current_media_time" / Int64ub,
+    "smpte_time_code_offset" / Int64ub,
+    "movie_identifier" / CString(),
+    "server_entry_table" / PrefixedArray(Int8ub, CString()),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "drm_data" / CString(),
+    "metadata" / CString(),
+    Probe(),
+    "fragment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box))
+)
+
+HDSFragmentRunBox = Struct(
+    "type" / Const(b"asrt"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "segment_run_enteries" / PrefixedArray(Int32ub, Struct(
+        "first_segment" / Int32ub,
+        "fragments_per_segment" / Int32ub
+    ))
+)
+
 
 # Boxes contained by Media Box
 
@@ -304,7 +333,7 @@ AVC1SampleEntryBox = Struct(
         "compatibility" / Int8ub,
         "level" / Int8ub,
         EmbeddedBitStruct(
-            Padding(6, pattern='\x01'),
+            Padding(6, pattern=b'\x01'),
             "nal_unit_length_field" / Default(BitsInteger(2), 3),
         ),
         "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
@@ -690,6 +719,9 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"tenc": TrackEncryptionBox,
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
+        # HDS boxes
+        b'abst': HDSSegmentBox,
+        b'asrt': HDSFragmentRunBox
     }, default=RawBox)),
     "end" / Tell
 ))
