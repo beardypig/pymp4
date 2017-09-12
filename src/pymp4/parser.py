@@ -178,9 +178,15 @@ TrackHeaderBox = Struct(
 HDSSegmentBox = Struct(
     "type" / Const(b"abst"),
     "version" / Default(Int8ub, 0),
-    "flags" / Default(Int24ub, 1),
+    "flags" / Default(Int24ub, 0),
     "info_version" / Int32ub,
-    "flags2" / Int8ub,
+    EmbeddedBitStruct(
+        Padding(1),
+        "profile" / Flag,
+        "live" / Flag,
+        "update" / Flag,
+        Padding(4)
+    ),
     "time_scale" / Int32ub,
     "current_media_time" / Int64ub,
     "smpte_time_code_offset" / Int64ub,
@@ -189,11 +195,11 @@ HDSSegmentBox = Struct(
     "quality_entry_table" / PrefixedArray(Int8ub, CString()),
     "drm_data" / CString(),
     "metadata" / CString(),
-    Probe(),
+    "segment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box)),
     "fragment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box))
 )
 
-HDSFragmentRunBox = Struct(
+HDSSegmentRunBox = Struct(
     "type" / Const(b"asrt"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
@@ -201,6 +207,23 @@ HDSFragmentRunBox = Struct(
     "segment_run_enteries" / PrefixedArray(Int32ub, Struct(
         "first_segment" / Int32ub,
         "fragments_per_segment" / Int32ub
+    ))
+)
+
+HDSFragmentRunBox = Struct(
+    "type" / Const(b"afrt"),
+    "version" / Default(Int8ub, 0),
+    "flags" / BitStruct(
+        Padding(23),
+        "update" / Flag
+    ),
+    "time_scale" / Int32ub,
+    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "fragment_run_enteries" / PrefixedArray(Int32ub, Struct(
+        "first_fragment" / Int32ub,
+        "first_fragment_timestamp" / Int64ub,
+        "fragment_duration" / Int32ub,
+        "discontinuity" / If(this.fragment_duration == 0, Int8ub)
     ))
 )
 
@@ -721,7 +744,8 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"senc": SampleEncryptionBox,
         # HDS boxes
         b'abst': HDSSegmentBox,
-        b'asrt': HDSFragmentRunBox
+        b'asrt': HDSSegmentRunBox,
+        b'afrt': HDSFragmentRunBox
     }, default=RawBox)),
     "end" / Tell
 ))
