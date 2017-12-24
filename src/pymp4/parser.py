@@ -642,7 +642,7 @@ class UUIDBytes(Adapter):
 
 
 ProtectionSystemHeaderBox = Struct(
-    "type" / Const(b"pssh"),
+    "type" / If(this._.type != b"uuid", Const(b"pssh")),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
     "flags" / Const(Int24ub, 0),
     "system_ID" / UUIDBytes(Bytes(16)),
@@ -653,7 +653,7 @@ ProtectionSystemHeaderBox = Struct(
 )
 
 TrackEncryptionBox = Struct(
-    "type" / Const(b"tenc"),
+    "type" / If(this._.type != b"uuid", Const(b"tenc")),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "is_encrypted" / Int24ub,
@@ -662,7 +662,7 @@ TrackEncryptionBox = Struct(
 )
 
 SampleEncryptionBox = Struct(
-    "type" / Const(b"senc"),
+    "type" / If(this._.type != b"uuid", Const(b"senc")),
     "version" / Const(Int8ub, 0),
     "flags" / BitStruct(
         Padding(22),
@@ -697,6 +697,18 @@ SchemeTypeBox = Struct(
 
 SchemeInformationBox = Struct(
     "type" / Const(b"schi")
+)
+
+# PIFF boxes
+
+UUIDBox = Struct(
+    "type" / Const(b"uuid"),
+    "extended_type" / UUIDBytes(Bytes(16)),
+    "data" / Switch(this.extended_type, {
+        UUID("A2394F52-5A9B-4F14-A244-6C427C648DF4"): SampleEncryptionBox,
+        UUID("D08A4F18-10F3-4A82-B6C8-32D8ABA183D3"): ProtectionSystemHeaderBox,
+        UUID("8974DBCE-7BE7-4C51-84F9-7148F9882554"): TrackEncryptionBox
+    }, GreedyBytes)
 )
 
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
@@ -768,6 +780,8 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"frma": OriginalFormatBox,
         b"schm": SchemeTypeBox,
         b"schi": SchemeInformationBox,
+        # piff
+        b"uuid": UUIDBox,
         # HDS boxes
         b'abst': HDSSegmentBox,
         b'asrt': HDSSegmentRunBox,
