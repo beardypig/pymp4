@@ -51,3 +51,17 @@ class BoxUtil(object):
             for sbox in box.children:
                 for fbox in cls.find(sbox, type_):
                     yield fbox
+
+    @classmethod
+    def find_extended(cls, box, extended_type_):
+        if hasattr(box, "extended_type"):
+          if box.extended_type == extended_type_:
+            yield box
+          elif hasattr(box, "children"):
+              for sbox in box.children:
+                  for fbox in cls.find_extended(sbox, extended_type_):
+                      yield fbox
+        elif hasattr(box, "children"):
+            for sbox in box.children:
+                for fbox in cls.find_extended(sbox, extended_type_):
+                    yield fbox
