@@ -371,7 +371,8 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
         b"mp4a": MP4ASampleEntryBox,
-        b"avc1": AVC1SampleEntryBox
+        b"avc1": AVC1SampleEntryBox,
+        b"encv": AVC1SampleEntryBox
     }, "data" / GreedyBytes))
 ))
 
@@ -679,6 +680,26 @@ SampleEncryptionBox = Struct(
     ))
 )
 
+ProtectionSchemeInfoBox = Struct(
+    "type" / Const(b"sinf"),
+)
+
+OriginalFormatBox = Struct(
+    "type" / Const(b"frma"),
+    "original_format" / Default(String(4), b"avc1")
+)
+
+SchemeTypeBox = Struct(
+    "type" / Const(b"schm"),
+    "scheme_uri" / Default(String(4) , b""),
+    "scheme_type" / Default(String(4), b"cenc"),
+    "scheme_version" / Int32ub
+)
+
+SchemeInformationBox = Struct(
+    "type" / Const(b"schi")
+)
+
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
 
@@ -739,10 +760,15 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"sidx": SegmentIndexBox,
         b"saiz": SampleAuxiliaryInformationSizesBox,
         b"saio": SampleAuxiliaryInformationOffsetsBox,
+        b"btrt": BitRateBox,
         # dash
         b"tenc": TrackEncryptionBox,
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
+        b"sinf": ProtectionSchemeInfoBox,
+        b"frma": OriginalFormatBox,
+        b"schm": SchemeTypeBox,
+        b"schi": SchemeInformationBox,
         # HDS boxes
         b'abst': HDSSegmentBox,
         b'asrt': HDSSegmentRunBox,
