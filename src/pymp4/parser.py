@@ -371,6 +371,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
         b"mp4a": MP4ASampleEntryBox,
+        b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
         b"encv": AVC1SampleEntryBox
     }, "data" / GreedyBytes))
@@ -387,7 +388,7 @@ SampleDescriptionBox = Struct(
     "type" / Const(b"stsd"),
     "version" / Default(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, SampleEntryBox),
+    "entries" / PrefixedArray(Int32ub, SampleEntryBox)
 )
 
 SampleSizeBox = Struct(
@@ -627,7 +628,8 @@ SoundMediaHeaderBox = Struct(
     "type" / Const(b"smhd"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "balance" / Default(Int16sb, 0)
+    "balance" / Default(Int16sb, 0),
+    "reserved" / Const(Int16ub, 0)
 )
 
 
