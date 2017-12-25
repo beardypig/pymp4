@@ -680,10 +680,6 @@ SampleEncryptionBox = Struct(
     ))
 )
 
-ProtectionSchemeInfoBox = Struct(
-    "type" / Const(b"sinf"),
-)
-
 OriginalFormatBox = Struct(
     "type" / Const(b"frma"),
     "original_format" / Default(String(4), b"avc1")
@@ -694,10 +690,6 @@ SchemeTypeBox = Struct(
     "scheme_uri" / Default(String(4) , b""),
     "scheme_type" / Default(String(4), b"cenc"),
     "scheme_version" / Int32ub
-)
-
-SchemeInformationBox = Struct(
-    "type" / Const(b"schi")
 )
 
 # PIFF boxes
@@ -777,10 +769,10 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"tenc": TrackEncryptionBox,
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
-        b"sinf": ProtectionSchemeInfoBox,
+        b"sinf": ContainerBoxLazy,
         b"frma": OriginalFormatBox,
         b"schm": SchemeTypeBox,
-        b"schi": SchemeInformationBox,
+        b"schi": ContainerBoxLazy,
         # piff
         b"uuid": UUIDBox,
         # HDS boxes
