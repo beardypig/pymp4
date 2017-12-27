@@ -370,6 +370,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
+        b"ec-3": MP4ASampleEntryBox,
         b"mp4a": MP4ASampleEntryBox,
         b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
@@ -786,7 +787,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
 
 ContainerBox = Struct(
     "type" / String(4, padchar=b" ", paddir="right"),
-    "children" / GreedyRange(Box),
+    "children" / GreedyRange(Box)
 )
 
 MP4 = GreedyRange(Box)
