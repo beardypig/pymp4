@@ -372,7 +372,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     Embedded(Switch(this.format, {
         b"mp4a": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox
-    }, "data" / GreedyBytes))
+    }, Struct("data" / GreedyBytes))),
 ))
 
 BitRateBox = Struct(
