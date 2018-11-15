@@ -375,7 +375,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
         b"encv": AVC1SampleEntryBox
-    }, "data" / GreedyBytes))
+    }, Struct("data" / GreedyBytes)))
 ))
 
 BitRateBox = Struct(

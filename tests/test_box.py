@@ -119,3 +119,14 @@ class BoxTests(unittest.TestCase):
             balance=0))
         self.assertEqual(len(smhd_data), 16),
         self.assertEqual(smhd_data, b'\x00\x00\x00\x10smhd\x00\x00\x00\x00\x00\x00\x00\x00')
+
+    def test_stsd_parse(self):
+        tx3g_data = b'\x00\x00\x00\x00\x01\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x12\xFF\xFF\xFF\xFF\x00\x00\x00\x12ftab\x00\x01\x00\x01\x05Serif'
+        in_bytes = b'\x00\x00\x00\x50stsd\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x40tx3g\x00\x00\x00\x00\x00\x00\x00\x01' + tx3g_data
+        self.assertEqual(
+            Box.parse(in_bytes + b'padding'),
+            Container(offset=0)
+            (type=b"stsd")(version=0)(flags=0)
+            (entries=[Container(format='tx3g')(data_reference_index=1)(data=tx3g_data)])
+            (end=len(in_bytes))
+        )
