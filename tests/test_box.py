@@ -111,6 +111,6 @@ class BoxTests(unittest.TestCase):
             Box.parse(in_bytes + b'padding'),
             Container(offset=0)
             (type=b"stsd")(version=0)(flags=0)
-            (entries=[Container(format='tx3g')(data_reference_index=1)(data=tx3g_data)])
+            (entries=[Container(format=b'tx3g')(data_reference_index=1)(data=tx3g_data)])
             (end=len(in_bytes))
         )
