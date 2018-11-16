@@ -332,6 +332,30 @@ class MaskedInteger(Adapter):
         return obj & 0x1F
 
 
+VideoSampleEntryExtensionBox = PrefixedIncludingSize(Int32ub, Struct(
+    "type" / String(4, padchar=b" ", paddir="right"),
+    Embedded(Switch(this.type, {
+        b"avcC": Struct(
+            "version" / Const(Int8ub, 1),
+            "profile" / Int8ub,
+            "compatibility" / Int8ub,
+            "level" / Int8ub,
+            EmbeddedBitStruct(
+                Padding(6, pattern=b'\x01'),
+                "nal_unit_length_field" / Default(BitsInteger(2), 3),
+            ),
+            "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
+            "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), []),
+            # if profile_idc takes specific values there can be additional information - ignoring
+            GreedyBytes
+        ),
+        b"pasp": Struct(
+            "h_spacing" / Int32ub,
+            "v_spacing" /Int32ub
+        )
+    }, default=Struct(RawBox))),
+))
+
 AVC1SampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
     "revision" / Const(Int16ub, 0),
@@ -349,19 +373,7 @@ AVC1SampleEntryBox = Struct(
     "compressor_name" / Default(String(32, padchar=b" "), ""),
     "depth" / Default(Int16ub, 24),
     "color_table_id" / Default(Int16sb, -1),
-    "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
-        "type" / Const(b"avcC"),
-        "version" / Const(Int8ub, 1),
-        "profile" / Int8ub,
-        "compatibility" / Int8ub,
-        "level" / Int8ub,
-        EmbeddedBitStruct(
-            Padding(6, pattern=b'\x01'),
-            "nal_unit_length_field" / Default(BitsInteger(2), 3),
-        ),
-        "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
-        "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), [])
-    ))
+    "extensions" / GreedyRange(VideoSampleEntryExtensionBox),
 )
 
 
