@@ -16,9 +16,10 @@
 """
 import logging
 import unittest
+import io
 
 from construct import Container
-from pymp4.parser import Box
+from pymp4.parser import Box, SampleEntryBox
 
 log = logging.getLogger(__name__)
 
@@ -103,3 +104,25 @@ class BoxTests(unittest.TestCase):
             b'\x00\x00\x00\x20trex\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
             b'\x00\x00\x00\x20trex\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         )
+
+    def test_avc1_parse(self):
+        compressor = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        sps = b'\x67\x4d\x40\x29\xe8\x80\x28\x02\xdd\xff\x80\x0d\x80\x0a\x08\x00\x00\x1f\x48\x00\x05\xdc\x00\x78\xc1\x88\x90'
+        pps = b'\x68\xeb\x8c\xb2'
+        input_bytes = (
+            b'\x00\x00\x00\x98avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05\x00\x02\xd0\x00\x48\x00\x00\x00\x48\x00\x00\x00\x00\x00\x00\x00\x01' + compressor + b'\x00\x18\xff\xff'
+            b'\x00\x00\x00\x32avcC\x01\x4d\x40\x29\xff\xe1\x00\x1b' + sps + b'\x01\x00\x04' + pps +
+            b'\x00\x00\x00\x10pasp\x00\x00\x00\x1b\x00\x00\x00\x14'
+        )
+        expected = (
+            Container(format=b'avc1')(data_reference_index=1)(version=0)(revision=0)(vendor=b'\x00\x00\x00\x00')
+            (temporal_quality=0)(spatial_quality=0)(width=1280)(height=720)(horizontal_resolution=72)
+            (vertical_resolution=72)(data_size=0)(frame_count=1)(compressor_name=compressor)(depth=24)(color_table_id=-1)
+            (extensions=[
+                Container(type=b'avcC')(version=1)(profile=77)(compatibility=64)(level=41)(nal_unit_length_field=3)(sps=[sps])(pps=[pps]),
+                Container(type=b'pasp')(h_spacing=27)(v_spacing=20)
+            ])
+        )
+        input_stream = io.BytesIO(input_bytes + b'padding')
+        self.assertEqual(SampleEntryBox.parse_stream(input_stream), expected)
+        self.assertEqual(input_stream.tell(), len(input_bytes))
