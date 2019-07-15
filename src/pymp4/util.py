@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-   Copyright 2016 beardypig
+   Copyright 2016-2019 beardypig
+   Copyright 2017-2019 truedread
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -55,12 +56,12 @@ class BoxUtil(object):
     @classmethod
     def find_extended(cls, box, extended_type_):
         if hasattr(box, "extended_type"):
-          if box.extended_type == extended_type_:
-            yield box
-          elif hasattr(box, "children"):
-              for sbox in box.children:
-                  for fbox in cls.find_extended(sbox, extended_type_):
-                      yield fbox
+            if box.extended_type == extended_type_:
+                yield box
+            elif hasattr(box, "children"):
+                for sbox in box.children:
+                    for fbox in cls.find_extended(sbox, extended_type_):
+                        yield fbox
         elif hasattr(box, "children"):
             for sbox in box.children:
                 for fbox in cls.find_extended(sbox, extended_type_):
