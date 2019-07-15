@@ -370,9 +370,12 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
+        b"ec-3": MP4ASampleEntryBox,
         b"mp4a": MP4ASampleEntryBox,
-        b"avc1": AVC1SampleEntryBox
-    }, Struct("data" / GreedyBytes))),
+        b"enca": MP4ASampleEntryBox,
+        b"avc1": AVC1SampleEntryBox,
+        b"encv": AVC1SampleEntryBox
+    }, Struct("data" / GreedyBytes)))
 ))
 
 BitRateBox = Struct(
@@ -386,7 +389,7 @@ SampleDescriptionBox = Struct(
     "type" / Const(b"stsd"),
     "version" / Default(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "entries" / PrefixedArray(Int32ub, SampleEntryBox),
+    "entries" / PrefixedArray(Int32ub, SampleEntryBox)
 )
 
 SampleSizeBox = Struct(
@@ -627,7 +630,7 @@ SoundMediaHeaderBox = Struct(
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "balance" / Default(Int16sb, 0),
-    Const(Int16ub, 0),
+    "reserved" / Const(Int16ub, 0)
 )
 
 
@@ -642,7 +645,7 @@ class UUIDBytes(Adapter):
 
 
 ProtectionSystemHeaderBox = Struct(
-    "type" / Const(b"pssh"),
+    "type" / If(this._.type != b"uuid", Const(b"pssh")),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
     "flags" / Const(Int24ub, 0),
     "system_ID" / UUIDBytes(Bytes(16)),
@@ -653,7 +656,7 @@ ProtectionSystemHeaderBox = Struct(
 )
 
 TrackEncryptionBox = Struct(
-    "type" / Const(b"tenc"),
+    "type" / If(this._.type != b"uuid", Const(b"tenc")),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     "is_encrypted" / Int24ub,
@@ -662,7 +665,7 @@ TrackEncryptionBox = Struct(
 )
 
 SampleEncryptionBox = Struct(
-    "type" / Const(b"senc"),
+    "type" / If(this._.type != b"uuid", Const(b"senc")),
     "version" / Const(Int8ub, 0),
     "flags" / BitStruct(
         Padding(22),
@@ -677,6 +680,30 @@ SampleEncryptionBox = Struct(
             "cipher_bytes" / Int32ub
         )))
     ))
+)
+
+OriginalFormatBox = Struct(
+    "type" / Const(b"frma"),
+    "original_format" / Default(String(4), b"avc1")
+)
+
+SchemeTypeBox = Struct(
+    "type" / Const(b"schm"),
+    "scheme_uri" / Default(String(4) , b""),
+    "scheme_type" / Default(String(4), b"cenc"),
+    "scheme_version" / Int32ub
+)
+
+# PIFF boxes
+
+UUIDBox = Struct(
+    "type" / Const(b"uuid"),
+    "extended_type" / UUIDBytes(Bytes(16)),
+    "data" / Switch(this.extended_type, {
+        UUID("A2394F52-5A9B-4F14-A244-6C427C648DF4"): SampleEncryptionBox,
+        UUID("D08A4F18-10F3-4A82-B6C8-32D8ABA183D3"): ProtectionSystemHeaderBox,
+        UUID("8974DBCE-7BE7-4C51-84F9-7148F9882554"): TrackEncryptionBox
+    }, GreedyBytes)
 )
 
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
@@ -739,10 +766,17 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"sidx": SegmentIndexBox,
         b"saiz": SampleAuxiliaryInformationSizesBox,
         b"saio": SampleAuxiliaryInformationOffsetsBox,
+        b"btrt": BitRateBox,
         # dash
         b"tenc": TrackEncryptionBox,
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
+        b"sinf": ContainerBoxLazy,
+        b"frma": OriginalFormatBox,
+        b"schm": SchemeTypeBox,
+        b"schi": ContainerBoxLazy,
+        # piff
+        b"uuid": UUIDBox,
         # HDS boxes
         b'abst': HDSSegmentBox,
         b'asrt': HDSSegmentRunBox,
@@ -753,7 +787,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
 
 ContainerBox = Struct(
     "type" / String(4, padchar=b" ", paddir="right"),
-    "children" / GreedyRange(Box),
+    "children" / GreedyRange(Box)
 )
 
 MP4 = GreedyRange(Box)
