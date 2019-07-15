@@ -626,7 +626,8 @@ SoundMediaHeaderBox = Struct(
     "type" / Const(b"smhd"),
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
-    "balance" / Default(Int16sb, 0)
+    "balance" / Default(Int16sb, 0),
+    Const(Int16ub, 0),
 )
 
 

@@ -114,3 +114,19 @@ class BoxTests(unittest.TestCase):
             (entries=[Container(format=b'tx3g')(data_reference_index=1)(data=tx3g_data)])
             (end=len(in_bytes))
         )
+
+    def test_smhd_parse(self):
+        in_bytes = b'\x00\x00\x00\x10smhd\x00\x00\x00\x00\x00\x00\x00\x00'
+        self.assertEqual(
+            Box.parse(in_bytes + b'padding'),
+            Container(offset=0)
+            (type=b"smhd")(version=0)(flags=0)
+            (balance=0)(end=len(in_bytes))
+        )
+
+    def test_smhd_build(self):
+        smhd_data = Box.build(dict(
+            type=b"smhd",
+            balance=0))
+        self.assertEqual(len(smhd_data), 16),
+        self.assertEqual(smhd_data, b'\x00\x00\x00\x10smhd\x00\x00\x00\x00\x00\x00\x00\x00')
