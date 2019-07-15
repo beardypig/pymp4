@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-   Copyright 2016 beardypig
+   Copyright 2016-2019 beardypig
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import logging
 import unittest
 
 from construct import Container
+
 from pymp4.exceptions import BoxNotFound
-from pymp4.parser import Box
 from pymp4.util import BoxUtil
 
 log = logging.getLogger(__name__)
@@ -35,6 +35,11 @@ class BoxTests(unittest.TestCase):
             ]),
             Container(type=b"d   ")(id=5),
         ])
+
+    box_extended_data = Container(type=b"test")(children=[
+        Container(type=b"a   ")(id=1, extended_type=b"e--a"),
+        Container(type=b"b   ")(id=2, extended_type=b"e--b"),
+    ])
 
     def test_find(self):
         self.assertListEqual(
@@ -73,4 +78,10 @@ class BoxTests(unittest.TestCase):
         self.assertRaises(
             BoxNotFound,
             BoxUtil.first, self.box_data, b"f   ",
+        )
+
+    def test_find_extended(self):
+        self.assertListEqual(
+            list(BoxUtil.find_extended(self.box_extended_data, b"e--a")),
+            [Container(type=b"a   ")(id=1, extended_type=b"e--a")]
         )
