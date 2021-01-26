@@ -79,6 +79,7 @@ class PrefixedIncludingSize(Subconstruct):
     def _sizeof(self, context, path):
         return self.lengthfield._sizeof(context, path) + self.subcon._sizeof(context, path)
 
+
 # Header box
 
 FileTypeBox = Struct(
@@ -139,7 +140,7 @@ MovieHeaderBox = Struct(
     Const(Int32ub, 0),
     Const(Int32ub, 0),
     "matrix" / Default(Int32sb[9], UNITY_MATRIX),
-    "pre_defined" / Default(Int32ub[6], [0]*6),
+    "pre_defined" / Default(Int32ub[6], [0] * 6),
     "next_track_ID" / Default(Int32ub, 0xffffffff)
 )
 
@@ -542,8 +543,8 @@ TrackRunBox = Struct(
         "data_offset_present" / Flag,
     ),
     "sample_count" / Int32ub,
-    "data_offset" / If(this.flags.data_offset_present, Int32sb),
-    "first_sample_flags" / If(this.flags.first_sample_flags_present, Int32ub),
+    "data_offset" / Default(If(this.flags.data_offset_present, Int32sb), None),
+    "first_sample_flags" / Default(If(this.flags.first_sample_flags_present, Int32ub), None),
     "sample_info" / Array(this.sample_count, Struct(
         "sample_duration" / If(this._.flags.sample_duration_present, Int32ub),
         "sample_size" / If(this._.flags.sample_size_present, Int32ub),
@@ -571,11 +572,11 @@ TrackFragmentHeaderBox = Struct(
         "base_data_offset_present" / Flag,
     ),
     "track_ID" / Int32ub,
-    "base_data_offset" / If(this.flags.base_data_offset_present, Int64ub),
-    "sample_description_index" / If(this.flags.sample_description_index_present, Int32ub),
-    "default_sample_duration" / If(this.flags.default_sample_duration_present, Int32ub),
-    "default_sample_size" / If(this.flags.default_sample_size_present, Int32ub),
-    "default_sample_flags" / If(this.flags.default_sample_flags_present, TrackSampleFlags),
+    "base_data_offset" / Default(If(this.flags.base_data_offset_present, Int64ub), None),
+    "sample_description_index" / Default(If(this.flags.sample_description_index_present, Int32ub), None),
+    "default_sample_duration" / Default(If(this.flags.default_sample_duration_present, Int32ub), None),
+    "default_sample_size" / Default(If(this.flags.default_sample_size_present, Int32ub), None),
+    "default_sample_flags" / Default(If(this.flags.default_sample_flags_present, TrackSampleFlags), None),
 )
 
 MovieExtendsHeaderBox = Struct(
@@ -626,8 +627,8 @@ SampleAuxiliaryInformationSizesBox = Struct(
         "has_aux_info_type" / Flag,
     ),
     # Optional fields
-    "aux_info_type" / If(this.flags.has_aux_info_type, Int32ub),
-    "aux_info_type_parameter" / If(this.flags.has_aux_info_type, Int32ub),
+    "aux_info_type" / Default(If(this.flags.has_aux_info_type, Int32ub), None),
+    "aux_info_type_parameter" / Default(If(this.flags.has_aux_info_type, Int32ub), None),
     "default_sample_info_size" / Int8ub,
     "sample_count" / Int32ub,
     # only if sample default_sample_info_size is 0
@@ -643,8 +644,8 @@ SampleAuxiliaryInformationOffsetsBox = Struct(
         "has_aux_info_type" / Flag,
     ),
     # Optional fields
-    "aux_info_type" / If(this.flags.has_aux_info_type, Int32ub),
-    "aux_info_type_parameter" / If(this.flags.has_aux_info_type, Int32ub),
+    "aux_info_type" / Default(If(this.flags.has_aux_info_type, Int32ub), None),
+    "aux_info_type_parameter" / Default(If(this.flags.has_aux_info_type, Int32ub), None),
     # Short offsets in version 0, long in version 1
     "offsets" / PrefixedArray(Int32ub, Switch(this.version, {0: Int32ub, 1: Int64ub}))
 )
@@ -697,9 +698,11 @@ TrackEncryptionBox = Struct(
     "is_encrypted" / Int8ub,
     "iv_size" / Int8ub,
     "key_ID" / UUIDBytes(Bytes(16)),
-    If(this._.default_is_protect and this.default_per_sample_iv_size == 0, Struct(
-        "constant_iv" / PrefixedArray(Int8ub, Byte)
-    ))
+    "constant_iv" / Default(If(this.is_encrypted and this.iv_size == 0,
+                               PrefixedArray(Int8ub, Byte),
+                               ),
+                            None)
+
 )
 
 SampleEncryptionBox = Struct(
@@ -713,10 +716,10 @@ SampleEncryptionBox = Struct(
     "sample_encryption_info" / PrefixedArray(Int32ub, Struct(
         "iv" / Bytes(8),
         # include the sub sample encryption information
-        "subsample_encryption_info" / If(this._.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
+        "subsample_encryption_info" / Default(If(this.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
             "clear_bytes" / Int16ub,
             "cipher_bytes" / Int32ub
-        )))
+        ))), None)
     ))
 )
 
@@ -731,7 +734,7 @@ SchemeTypeBox = Struct(
     "flags" / Default(Int24ub, 0),
     "scheme_type" / Default(String(4), b"cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
-    "schema_uri" / If(this.flags & 1 == 1, CString())
+    "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
 )
 
 ProtectionSchemeInformationBox = Struct(
