@@ -364,6 +364,39 @@ AVC1SampleEntryBox = Struct(
     ))
 )
 
+EncryptedAVC1SampleEntryBox = Struct(
+    "version" / Default(Int16ub, 0),
+    "revision" / Const(Int16ub, 0),
+    "vendor" / Default(String(4, padchar=b" "), b"brdy"),
+    "temporal_quality" / Default(Int32ub, 0),
+    "spatial_quality" / Default(Int32ub, 0),
+    "width" / Int16ub,
+    "height" / Int16ub,
+    "horizontal_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
+    Padding(2),
+    "vertical_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
+    Padding(2),
+    "data_size" / Const(Int32ub, 0),
+    "frame_count" / Default(Int16ub, 1),
+    "compressor_name" / Default(String(32, padchar=b" "), ""),
+    "depth" / Default(Int16ub, 24),
+    "color_table_id" / Default(Int16sb, -1),
+    "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
+        "type" / Const(b"avcC"),
+        "version" / Const(Int8ub, 1),
+        "profile" / Int8ub,
+        "compatibility" / Int8ub,
+        "level" / Int8ub,
+        EmbeddedBitStruct(
+            Padding(6, pattern=b'\x01'),
+            "nal_unit_length_field" / Default(BitsInteger(2), 3),
+        ),
+        "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
+        "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), [])
+    )),
+    "sample_info" / LazyBound(lambda _: PrefixedIncludingSize(Int32ub, ProtectionSchemeInformationBox))
+
+)
 
 SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
     "format" / String(4, padchar=b" ", paddir="right"),
@@ -374,7 +407,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         b"mp4a": MP4ASampleEntryBox,
         b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
-        b"encv": AVC1SampleEntryBox
+        b"encv": EncryptedAVC1SampleEntryBox
     }, Struct("data" / GreedyBytes)))
 ))
 
@@ -657,11 +690,16 @@ ProtectionSystemHeaderBox = Struct(
 
 TrackEncryptionBox = Struct(
     "type" / If(this._.type != b"uuid", Const(b"tenc")),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
-    "is_encrypted" / Int24ub,
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
+    "_reserved0" / Const(Int8ub, 0),
+    "_reserved1" / Const(Int8ub, 0),
+    "is_encrypted" / Int8ub,
     "iv_size" / Int8ub,
-    "key_ID" / UUIDBytes(Bytes(16))
+    "key_ID" / UUIDBytes(Bytes(16)),
+    If(this._.default_is_protect and this.default_per_sample_iv_size == 0, Struct(
+        "constant_iv" / PrefixedArray(Int8ub, Byte)
+    ))
 )
 
 SampleEncryptionBox = Struct(
@@ -689,9 +727,17 @@ OriginalFormatBox = Struct(
 
 SchemeTypeBox = Struct(
     "type" / Const(b"schm"),
-    "scheme_uri" / Default(String(4) , b""),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
     "scheme_type" / Default(String(4), b"cenc"),
-    "scheme_version" / Int32ub
+    "scheme_version" / Default(Int32ub, 0x00010000),
+    "schema_uri" / If(this.flags & 1 == 1, CString())
+)
+
+ProtectionSchemeInformationBox = Struct(
+    "type" / Const(b"sinf"),
+    # TODO: define which children are required 'schm', 'schi' and 'tenc'
+    "children" / LazyBound(lambda _: GreedyRange(Box))
 )
 
 # PIFF boxes
@@ -771,7 +817,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         b"tenc": TrackEncryptionBox,
         b"pssh": ProtectionSystemHeaderBox,
         b"senc": SampleEncryptionBox,
-        b"sinf": ContainerBoxLazy,
+        b"sinf": ProtectionSchemeInformationBox,
         b"frma": OriginalFormatBox,
         b"schm": SchemeTypeBox,
         b"schi": ContainerBoxLazy,
