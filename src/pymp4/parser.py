@@ -84,22 +84,22 @@ class PrefixedIncludingSize(Subconstruct):
 
 FileTypeBox = Struct(
     "type" / Const(b"ftyp"),
-    "major_brand" / String(4),
+    "major_brand" / PaddedString(4, "utf8"),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, "utf8")),
 )
 
 SegmentTypeBox = Struct(
     "type" / Const(b"styp"),
-    "major_brand" / String(4),
+    "major_brand" / PaddedString(4, "utf8"),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, "utf8")),
 )
 
 # Catch find boxes
 
 RawBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, "utf8"),
     "data" / Default(GreedyBytes, b"")
 )
 
@@ -265,7 +265,7 @@ HandlerReferenceBox = Struct(
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     Padding(4, pattern=b"\x00"),
-    "handler_type" / String(4),
+    "handler_type" / PaddedString(4, "utf8"),
     Padding(12, pattern=b"\x00"),  # Int32ub[3]
     "name" / CString(encoding="utf8")
 )
@@ -378,7 +378,7 @@ HVCC = Struct(
 AVC1SampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
     "revision" / Const(Int16ub, 0),
-    "vendor" / Default(String(4, padchar=b" "), b"brdy"),
+    "vendor" / Default(PaddedString(4, "utf8"), b"brdy"),
     "temporal_quality" / Default(Int32ub, 0),
     "spatial_quality" / Default(Int32ub, 0),
     "width" / Int16ub,
@@ -389,11 +389,11 @@ AVC1SampleEntryBox = Struct(
     Padding(2),
     "data_size" / Const(Int32ub, 0),
     "frame_count" / Default(Int16ub, 1),
-    "compressor_name" / Default(String(32, padchar=b" "), ""),
+    "compressor_name" / Default(PaddedString(32, "utf8"), ""),
     "depth" / Default(Int16ub, 24),
     "color_table_id" / Default(Int16sb, -1),
     "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, "utf8"),
         Embedded(Switch(this.type, {
             b"avcC": AAVC,
             b"hvcC": HVCC,
@@ -403,7 +403,7 @@ AVC1SampleEntryBox = Struct(
 )
 
 SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
-    "format" / String(4, padchar=b" ", paddir="right"),
+    "format" / PaddedString(4, "utf8"),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
@@ -728,14 +728,14 @@ SampleEncryptionBox = Struct(
 
 OriginalFormatBox = Struct(
     "type" / Const(b"frma"),
-    "original_format" / Default(String(4), b"avc1")
+    "original_format" / Default(PaddedString(4, "utf8"), b"avc1")
 )
 
 SchemeTypeBox = Struct(
     "type" / Const(b"schm"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "scheme_type" / Default(String(4), b"cenc"),
+    "scheme_type" / Default(PaddedString(4, "utf8"), b"cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
     "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
 )
@@ -778,7 +778,7 @@ class TellMinusSizeOf(Subconstruct):
 
 Box = PrefixedIncludingSize(Int32ub, Struct(
     "offset" / TellMinusSizeOf(Int32ub),
-    "type" / Peek(String(4, padchar=b" ", paddir="right")),
+    "type" / Peek(PaddedString(4, "utf8")),
     Embedded(Switch(this.type, {
         b"ftyp": FileTypeBox,
         b"styp": SegmentTypeBox,
@@ -838,7 +838,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
 ))
 
 ContainerBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, "utf8"),
     "children" / GreedyRange(Box)
 )
 
