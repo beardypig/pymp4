@@ -18,6 +18,7 @@ import logging
 import unittest
 
 from construct import Container
+from construct.lib.containers import ListContainer
 from pymp4.parser import Box
 
 log = logging.getLogger(__name__)
@@ -29,10 +30,10 @@ class BoxTests(unittest.TestCase):
         self.assertEqual(
             Box.parse(b'\x00\x00\x00\x18ftypiso5\x00\x00\x00\x01iso5avc1'),
             Container(offset=0)
-            (type=b"ftyp")
-            (box_body=Container(major_brand=b"iso5")
+            (type=u"ftyp")
+            (box_body=Container(type=b"ftyp")(major_brand=b"iso5")
             (minor_version=1)
-            (compatible_brands=[b"iso5", b"avc1"]))
+            (compatible_brands=ListContainer(["iso5", "avc1"])))
             (end=24)
         )
 
