@@ -707,14 +707,14 @@ UUIDBox = Struct(
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
 
-class TellMinusSizeOf(Subconstruct):
+class TellPlusSizeOf(Subconstruct):
     def __init__(self, subcon):
-        super(TellMinusSizeOf, self).__init__(subcon)
+        super(TellPlusSizeOf, self).__init__(subcon)
         self.flagbuildnone = True
 
     def _parse(self, stream, context, path):
         import pdb;pdb.set_trace()
-        return stream.tell() - self.subcon.sizeof(context=context)
+        return stream.tell() + self.subcon.sizeof(context=context)
 
     def _build(self, obj, stream, context, path):
         return b""
