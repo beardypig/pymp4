@@ -7,7 +7,9 @@ all: test
 env/bin/activate: 
 	test -d env || python3 -m venv env
 	. env/bin/activate; \
-		pip3 install -r requirements.txt
+	pip3 install wheel; \
+	python3 setup.py bdist_wheel; \
+	pip3 install -r requirements.txt
 
 env: env/bin/activate
 

@@ -199,9 +199,9 @@ MediaHeaderBox = Struct(
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "timescale" / Int32ub,
     "duration" / IfThenElse(this.version == 1, Int64ub, Int32ub),
-    BitStruct(
+    "language" / BitStruct(
         Padding(1),
-        "language" / ISO6392TLanguageCode(BitsInteger(5)[3]),
+        "code" / ISO6392TLanguageCode(BitsInteger(5)[3]),
     ),
     Padding(2, pattern=b"\x00"),
 )
@@ -352,7 +352,7 @@ SampleEntryBox = Prefixed(Int32ub, Struct(
     "format" / PaddedString(4, STRING_ENCODING),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
-    Switch(this.format, {
+    "sample_entry_box" / Switch(this.format, {
         u"ec-3": MP4ASampleEntryBox,
         u"mp4a": MP4ASampleEntryBox,
         u"enca": MP4ASampleEntryBox,
@@ -545,7 +545,7 @@ TrackExtendsBox = Struct(
     "default_sample_description_index" / Default(Int32ub, 1),
     "default_sample_duration" / Default(Int32ub, 0),
     "default_sample_size" / Default(Int32ub, 0),
-    "default_sample_flags" / Default(TrackSampleFlags, Container()),
+    "default_sample_flags" / Default(TrackSampleFlags, None),
 )
 
 SegmentIndexBox = Struct(
@@ -704,7 +704,7 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
-ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
+ContainerBoxLazy = LazyBound(lambda : ContainerBox)
 
 
 class TellPlusSizeOf(Subconstruct):
@@ -713,7 +713,6 @@ class TellPlusSizeOf(Subconstruct):
         self.flagbuildnone = True
 
     def _parse(self, stream, context, path):
-        import pdb;pdb.set_trace()
         return stream.tell() + self.subcon.sizeof(context=context)
 
     def _build(self, obj, stream, context, path):
@@ -777,11 +776,11 @@ Box = Prefixed(Int32ub, Struct(
         # piff
         u"uuid": UUIDBox,
         # HDS boxes
-        b'abst': HDSSegmentBox,
-        b'asrt': HDSSegmentRunBox,
-        b'afrt': HDSFragmentRunBox
+        u'abst': HDSSegmentBox,
+        u'asrt': HDSSegmentRunBox,
+        u'afrt': HDSFragmentRunBox
     }, default=RawBox),
-    "end" / Tell
+    "end" / TellPlusSizeOf(Int32ub)
 ), includelength=True)
 
 ContainerBox = Struct(
