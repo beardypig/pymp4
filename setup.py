@@ -19,35 +19,35 @@ from os.path import abspath, dirname, join
 from setuptools import setup, find_packages
 from sys import path as sys_path
 
-deps = [
-    "construct==2.8.8"
-]
+deps = ["construct"]
 
 srcdir = join(dirname(abspath(__file__)), "src/")
 sys_path.insert(0, srcdir)
 
-setup(name="pymp4",
-      version="1.2.0",
-      description="A Python parser for MP4 boxes",
-      url="https://github.com/beardypig/pymp4",
-      author="beardypig",
-      author_email="git@beardypig.com",
-      license="Apache 2.0",
-      packages=find_packages("src"),
-      package_dir={"": "src"},
-      entry_points={
-          "console_scripts": ["mp4dump=pymp4.cli:dump"]
-      },
-      install_requires=deps,
-      test_suite="tests",
-      classifiers=["Development Status :: 4 - Beta",
-                   "Environment :: Console",
-                   "Operating System :: POSIX",
-                   "Programming Language :: Python :: 2.7",
-                   "Programming Language :: Python :: 3.3",
-                   "Programming Language :: Python :: 3.4",
-                   "Programming Language :: Python :: 3.5",
-                   "Programming Language :: Python :: 3.6",
-                   "Topic :: Multimedia :: Sound/Audio",
-                   "Topic :: Multimedia :: Video",
-                   "Topic :: Utilities"])
+setup(
+    name="pymp4",
+    version="1.2.0",
+    description="A Python parser for MP4 boxes",
+    url="https://github.com/beardypig/pymp4",
+    author="beardypig",
+    author_email="git@beardypig.com",
+    license="Apache 2.0",
+    packages=find_packages("src"),
+    package_dir={"": "src"},
+    entry_points={"console_scripts": ["mp4dump=pymp4.cli:dump"]},
+    install_requires=deps,
+    test_suite="tests",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Environment :: Console",
+        "Operating System :: POSIX",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Topic :: Multimedia :: Sound/Audio",
+        "Topic :: Multimedia :: Video",
+        "Topic :: Utilities",
+    ],
+)

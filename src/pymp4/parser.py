@@ -20,106 +20,54 @@ from uuid import UUID
 from construct import *
 import construct.core
 from construct.lib import *
+from sys import maxsize
 
 log = logging.getLogger(__name__)
 
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
 
-
-class PrefixedIncludingSize(Subconstruct):
-    __slots__ = ["name", "lengthfield", "subcon"]
-
-    def __init__(self, lengthfield, subcon):
-        super(PrefixedIncludingSize, self).__init__(subcon)
-        self.lengthfield = lengthfield
-
-    def _parse(self, stream, context, path):
-        try:
-            lengthfield_size = self.lengthfield.sizeof()
-            length = self.lengthfield._parse(stream, context, path)
-        except SizeofError:
-            offset_start = stream.tell()
-            length = self.lengthfield._parse(stream, context, path)
-            lengthfield_size = stream.tell() - offset_start
-
-        stream2 = BoundBytesIO(stream, length - lengthfield_size)
-        obj = self.subcon._parse(stream2, context, path)
-        return obj
-
-    def _build(self, obj, stream, context, path):
-        try:
-            # needs to be both fixed size, seekable and tellable (third not checked)
-            self.lengthfield.sizeof()
-            if not stream.seekable:
-                raise SizeofError
-            offset_start = stream.tell()
-            self.lengthfield._build(0, stream, context, path)
-            self.subcon._build(obj, stream, context, path)
-            offset_end = stream.tell()
-            stream.seek(offset_start)
-            self.lengthfield._build(offset_end - offset_start, stream, context, path)
-            stream.seek(offset_end)
-        except SizeofError:
-            data = self.subcon.build(obj, context)
-            sl, p_sl = 0, 0
-            dlen = len(data)
-            # do..while
-            i = 0
-            while True:
-                i += 1
-                p_sl = sl
-                sl = len(self.lengthfield.build(dlen + sl))
-                if p_sl == sl: break
-
-                self.lengthfield._build(dlen + sl, stream, context, path)
-            else:
-                self.lengthfield._build(len(data), stream, context, path)
-            construct.core._write_stream(stream, len(data), data)
-
-    def _sizeof(self, context, path):
-        return self.lengthfield._sizeof(context, path) + self.subcon._sizeof(context, path)
-
+STRING_ENCODING = "utf8"
 
 # Header box
 
 FileTypeBox = Struct(
-    "type" / Const(b"ftyp"),
-    "major_brand" / String(4),
+    "type" / Const("ftyp".encode(STRING_ENCODING)),
+    "major_brand" / PaddedString(4, STRING_ENCODING),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, STRING_ENCODING)),
 )
 
 SegmentTypeBox = Struct(
-    "type" / Const(b"styp"),
-    "major_brand" / String(4),
+    "type" / Const("styp".encode(STRING_ENCODING)),
+    "major_brand" / PaddedString(4, STRING_ENCODING),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, STRING_ENCODING)),
 )
 
 # Catch find boxes
 
 RawBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, STRING_ENCODING),
     "data" / Default(GreedyBytes, b"")
 )
 
 FreeBox = Struct(
-    "type" / Const(b"free"),
+    "type" / Const("free".encode(STRING_ENCODING)),
     "data" / GreedyBytes
 )
 
 SkipBox = Struct(
-    "type" / Const(b"skip"),
+    "type" / Const("skip".encode(STRING_ENCODING)),
     "data" / GreedyBytes
 )
 
 # Movie boxes, contained in a moov Box
 
 MovieHeaderBox = Struct(
-    "type" / Const(b"mvhd"),
+    "type" / Const("mvhd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    Embedded(Switch(this.version, {
+    Switch(this.version, {
         1: Struct(
             "creation_time" / Default(Int64ub, 0),
             "modification_time" / Default(Int64ub, 0),
@@ -132,13 +80,11 @@ MovieHeaderBox = Struct(
             "timescale" / Default(Int32ub, 10000000),
             "duration" / Int32ub,
         ),
-    })),
+    }),
     "rate" / Default(Int32sb, 65536),
     "volume" / Default(Int16sb, 256),
     # below could be just Padding(10) but why not
-    Const(Int16ub, 0),
-    Const(Int32ub, 0),
-    Const(Int32ub, 0),
+    Padding(10),
     "matrix" / Default(Int32sb[9], UNITY_MATRIX),
     "pre_defined" / Default(Int32ub[6], [0] * 6),
     "next_track_ID" / Default(Int32ub, 0xffffffff)
@@ -147,10 +93,10 @@ MovieHeaderBox = Struct(
 # Track boxes, contained in trak box
 
 TrackHeaderBox = Struct(
-    "type" / Const(b"tkhd"),
+    "type" / Const("tkhd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 1),
-    Embedded(Switch(this.version, {
+    Switch(this.version, {
         1: Struct(
             "creation_time" / Default(Int64ub, 0),
             "modification_time" / Default(Int64ub, 0),
@@ -165,7 +111,7 @@ TrackHeaderBox = Struct(
             Padding(4),
             "duration" / Default(Int32ub, 0),
         ),
-    })),
+    }),
     Padding(8),
     "layer" / Default(Int16sb, 0),
     "alternate_group" / Default(Int16sb, 0),
@@ -177,11 +123,11 @@ TrackHeaderBox = Struct(
 )
 
 HDSSegmentBox = Struct(
-    "type" / Const(b"abst"),
+    "type" / Const("abst".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
     "info_version" / Int32ub,
-    EmbeddedBitStruct(
+    BitStruct(
         Padding(1),
         "profile" / Flag,
         "live" / Flag,
@@ -191,20 +137,20 @@ HDSSegmentBox = Struct(
     "time_scale" / Int32ub,
     "current_media_time" / Int64ub,
     "smpte_time_code_offset" / Int64ub,
-    "movie_identifier" / CString(),
-    "server_entry_table" / PrefixedArray(Int8ub, CString()),
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
-    "drm_data" / CString(),
-    "metadata" / CString(),
+    "movie_identifier" / CString(STRING_ENCODING),
+    "server_entry_table" / PrefixedArray(Int8ub, CString(STRING_ENCODING)),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString(STRING_ENCODING)),
+    "drm_data" / CString(STRING_ENCODING),
+    "metadata" / CString(STRING_ENCODING),
     "segment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box)),
     "fragment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box))
 )
 
 HDSSegmentRunBox = Struct(
-    "type" / Const(b"asrt"),
+    "type" / Const("asrt".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString(STRING_ENCODING)),
     "segment_run_enteries" / PrefixedArray(Int32ub, Struct(
         "first_segment" / Int32ub,
         "fragments_per_segment" / Int32ub
@@ -212,14 +158,14 @@ HDSSegmentRunBox = Struct(
 )
 
 HDSFragmentRunBox = Struct(
-    "type" / Const(b"afrt"),
+    "type" / Const("afrt".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / BitStruct(
         Padding(23),
         "update" / Flag
     ),
     "time_scale" / Int32ub,
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString(STRING_ENCODING)),
     "fragment_run_enteries" / PrefixedArray(Int32ub, Struct(
         "first_fragment" / Int32ub,
         "first_fragment_timestamp" / Int64ub,
@@ -232,50 +178,50 @@ HDSFragmentRunBox = Struct(
 # Boxes contained by Media Box
 
 class ISO6392TLanguageCode(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         """
         Get the python representation of the obj
         """
-        return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
+        return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode(STRING_ENCODING)
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         """
         Get the bytes representation of the obj
         """
-        return [c - 0x60 for c in bytearray(obj.encode("utf8"))]
+        return [c - 0x60 for c in bytearray(obj.encode(STRING_ENCODING))]
 
 
 MediaHeaderBox = Struct(
-    "type" / Const(b"mdhd"),
+    "type" / Const("mdhd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "creation_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "timescale" / Int32ub,
     "duration" / IfThenElse(this.version == 1, Int64ub, Int32ub),
-    Embedded(BitStruct(
+    "language" / BitStruct(
         Padding(1),
-        "language" / ISO6392TLanguageCode(BitsInteger(5)[3]),
-    )),
+        "code" / ISO6392TLanguageCode(BitsInteger(5)[3]),
+    ),
     Padding(2, pattern=b"\x00"),
 )
 
 HandlerReferenceBox = Struct(
-    "type" / Const(b"hdlr"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("hdlr".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     Padding(4, pattern=b"\x00"),
-    "handler_type" / String(4),
+    "handler_type" / PaddedString(4, STRING_ENCODING),
     Padding(12, pattern=b"\x00"),  # Int32ub[3]
-    "name" / CString(encoding="utf8")
+    "name" / CString(encoding=STRING_ENCODING)
 )
 
 # Boxes contained by Media Info Box
 
 VideoMediaHeaderBox = Struct(
-    "type" / Const(b"vmhd"),
+    "type" / Const("vmhd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 1),
+    "flags" / Const(1, Int24ub),
     "graphics_mode" / Default(Int16ub, 0),
     "opcolor" / Struct(
         "red" / Default(Int16ub, 0),
@@ -284,28 +230,28 @@ VideoMediaHeaderBox = Struct(
     ),
 )
 
-DataEntryUrlBox = PrefixedIncludingSize(Int32ub, Struct(
-    "type" / Const(b"url "),
-    "version" / Const(Int8ub, 0),
+DataEntryUrlBox = Prefixed(Int32ub, Struct(
+    "type" / Const("url ".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~this._.location)
     ),
-    "location" / If(~this.flags.self_contained, CString(encoding="utf8")),
-))
+    "location" / If(~this.flags.self_contained, CString(encoding=STRING_ENCODING)),
+), includelength=True)
 
-DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
-    "type" / Const(b"urn "),
-    "version" / Const(Int8ub, 0),
+DataEntryUrnBox = Prefixed(Int32ub, Struct(
+    "type" / Const("urn ".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~(this._.name & this._.location))
     ),
-    "name" / If(this.flags == 0, CString(encoding="utf8")),
-    "location" / If(this.flags == 0, CString(encoding="utf8")),
-))
+    "name" / If(this.flags == 0, CString(encoding=STRING_ENCODING)),
+    "location" / If(this.flags == 0, CString(encoding=STRING_ENCODING)),
+), includelength=True)
 
 DataReferenceBox = Struct(
-    "type" / Const(b"dref"),
-    "version" / Const(Int8ub, 0),
+    "type" / Const("dref".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
     "flags" / Default(Int24ub, 0),
     "data_entries" / PrefixedArray(Int32ub, Select(DataEntryUrnBox, DataEntryUrlBox)),
 )
@@ -314,41 +260,41 @@ DataReferenceBox = Struct(
 
 MP4ASampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
-    "revision" / Const(Int16ub, 0),
-    "vendor" / Const(Int32ub, 0),
+    "revision" / Const(0, Int16ub),
+    "vendor" / Const(0, Int32ub),
     "channels" / Default(Int16ub, 2),
     "bits_per_sample" / Default(Int16ub, 16),
     "compression_id" / Default(Int16sb, 0),
-    "packet_size" / Const(Int16ub, 0),
+    "packet_size" / Const(0, Int16ub),
     "sampling_rate" / Int16ub,
     Padding(2)
 )
 
 
 class MaskedInteger(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         return obj & 0x1F
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         return obj & 0x1F
 
 
 AAVC = Struct(
-    "version" / Const(Int8ub, 1),
+    "version" / Const(1, Int8ub),
     "profile" / Int8ub,
     "compatibility" / Int8ub,
     "level" / Int8ub,
-    EmbeddedBitStruct(
+    BitStruct(
         Padding(6, pattern=b'\x01'),
         "nal_unit_length_field" / Default(BitsInteger(2), 3),
     ),
-    "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
-    "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), [])
+    "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub, STRING_ENCODING)), []),
+    "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub, STRING_ENCODING)), [])
 )
 
 HVCC = Struct(
-    EmbeddedBitStruct(
-        "version" / Const(BitsInteger(8), 1),
+    BitStruct(
+        "version" / Const(1, BitsInteger(8)),
         "profile_space" / BitsInteger(2),
         "general_tier_flag" / BitsInteger(1),
         "general_profile" / BitsInteger(5),
@@ -377,8 +323,8 @@ HVCC = Struct(
 
 AVC1SampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
-    "revision" / Const(Int16ub, 0),
-    "vendor" / Default(String(4, padchar=b" "), b"brdy"),
+    "revision" / Const(0, Int16ub),
+    "vendor" / Default(PaddedString(4, STRING_ENCODING), b"brdy"),
     "temporal_quality" / Default(Int32ub, 0),
     "spatial_quality" / Default(Int32ub, 0),
     "width" / Int16ub,
@@ -387,61 +333,61 @@ AVC1SampleEntryBox = Struct(
     Padding(2),
     "vertical_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
     Padding(2),
-    "data_size" / Const(Int32ub, 0),
+    "data_size" / Const(0, Int32ub),
     "frame_count" / Default(Int16ub, 1),
-    "compressor_name" / Default(String(32, padchar=b" "), ""),
+    "compressor_name" / Default(PaddedString(32, STRING_ENCODING), ""),
     "depth" / Default(Int16ub, 24),
     "color_table_id" / Default(Int16sb, -1),
-    "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
-        Embedded(Switch(this.type, {
-            b"avcC": AAVC,
-            b"hvcC": HVCC,
-        }, Struct("data" / GreedyBytes)))
-    )),
+    "avc_data" / Prefixed(Int32ub, Struct(
+    "type" / PaddedString(4, STRING_ENCODING),
+        Switch(this.type, {
+            u"avcC": AAVC,
+            u"hvcC": HVCC,
+        }, Struct("data" / GreedyBytes))
+    ), includelength=True),
     "sample_info" / LazyBound(lambda _: GreedyRange(Box))
 )
 
-SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
-    "format" / String(4, padchar=b" ", paddir="right"),
+SampleEntryBox = Prefixed(Int32ub, Struct(
+    "format" / PaddedString(4, STRING_ENCODING),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
-    Embedded(Switch(this.format, {
-        b"ec-3": MP4ASampleEntryBox,
-        b"mp4a": MP4ASampleEntryBox,
-        b"enca": MP4ASampleEntryBox,
-        b"avc1": AVC1SampleEntryBox,
-        b"encv": AVC1SampleEntryBox
-    }, Struct("data" / GreedyBytes)))
-))
+    "sample_entry_box" / Switch(this.format, {
+        u"ec-3": MP4ASampleEntryBox,
+        u"mp4a": MP4ASampleEntryBox,
+        u"enca": MP4ASampleEntryBox,
+        u"avc1": AVC1SampleEntryBox,
+        u"encv": AVC1SampleEntryBox
+    }, Struct("data" / GreedyBytes))
+), includelength=True)
 
 BitRateBox = Struct(
-    "type" / Const(b"btrt"),
+    "type" / Const("btrt".encode(STRING_ENCODING)),
     "bufferSizeDB" / Int32ub,
     "maxBitrate" / Int32ub,
     "avgBirate" / Int32ub,
 )
 
 SampleDescriptionBox = Struct(
-    "type" / Const(b"stsd"),
+    "type" / Const("stsd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "entries" / PrefixedArray(Int32ub, SampleEntryBox)
 )
 
 SampleSizeBox = Struct(
-    "type" / Const(b"stsz"),
+    "type" / Const("stsz".encode(STRING_ENCODING)),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "sample_size" / Int32ub,
     "sample_count" / Int32ub,
     "entry_sizes" / If(this.sample_size == 0, Array(this.sample_count, Int32ub))
 )
 
 SampleSizeBox2 = Struct(
-    "type" / Const(b"stz2"),
+    "type" / Const("stz2".encode(STRING_ENCODING)),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     Padding(3, pattern=b"\x00"),
     "field_size" / Int8ub,
     "sample_count" / Int24ub,
@@ -451,15 +397,15 @@ SampleSizeBox2 = Struct(
 )
 
 SampleDegradationPriorityBox = Struct(
-    "type" / Const(b"stdp"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("stdp".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
 )
 
 TimeToSampleBox = Struct(
-    "type" / Const(b"stts"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("stts".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_count" / Int32ub,
         "sample_delta" / Int32ub,
@@ -467,18 +413,18 @@ TimeToSampleBox = Struct(
 )
 
 SyncSampleBox = Struct(
-    "type" / Const(b"stss"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("stss".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_number" / Int32ub,
     )), [])
 )
 
 SampleToChunkBox = Struct(
-    "type" / Const(b"stsc"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("stsc".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "first_chunk" / Int32ub,
         "samples_per_chunk" / Int32ub,
@@ -487,18 +433,18 @@ SampleToChunkBox = Struct(
 )
 
 ChunkOffsetBox = Struct(
-    "type" / Const(b"stco"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("stco".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "chunk_offset" / Int32ub,
     )), [])
 )
 
 ChunkLargeOffsetBox = Struct(
-    "type" / Const(b"co64"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("co64".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / PrefixedArray(Int32ub, Struct(
         "chunk_offset" / Int64ub,
     ))
@@ -507,16 +453,16 @@ ChunkLargeOffsetBox = Struct(
 # Movie Fragment boxes, contained in moof box
 
 MovieFragmentHeaderBox = Struct(
-    "type" / Const(b"mfhd"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("mfhd".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "sequence_number" / Int32ub
 )
 
 TrackFragmentBaseMediaDecodeTimeBox = Struct(
-    "type" / Const(b"tfdt"),
+    "type" / Const("tfdt".encode(STRING_ENCODING)),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "baseMediaDecodeTime" / Switch(this.version, {1: Int64ub, 0: Int32ub})
 )
 
@@ -532,7 +478,7 @@ TrackSampleFlags = BitStruct(
 )
 
 TrackRunBox = Struct(
-    "type" / Const(b"trun"),
+    "type" / Const("trun".encode(STRING_ENCODING)),
     "version" / Int8ub,
     "flags" / BitStruct(
         Padding(12),
@@ -560,7 +506,7 @@ TrackRunBox = Struct(
 )
 
 TrackFragmentHeaderBox = Struct(
-    "type" / Const(b"tfhd"),
+    "type" / Const("tfhd".encode(STRING_ENCODING)),
     "version" / Int8ub,
     "flags" / BitStruct(
         Padding(6),
@@ -583,29 +529,29 @@ TrackFragmentHeaderBox = Struct(
 )
 
 MovieExtendsHeaderBox = Struct(
-    "type" / Const(b"mehd"),
+    "type" / Const("mehd".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "fragment_duration" / IfThenElse(this.version == 1,
                                      Default(Int64ub, 0),
                                      Default(Int32ub, 0))
 )
 
 TrackExtendsBox = Struct(
-    "type" / Const(b"trex"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("trex".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "track_ID" / Int32ub,
     "default_sample_description_index" / Default(Int32ub, 1),
     "default_sample_duration" / Default(Int32ub, 0),
     "default_sample_size" / Default(Int32ub, 0),
-    "default_sample_flags" / Default(TrackSampleFlags, Container()),
+    "default_sample_flags" / Default(TrackSampleFlags, None),
 )
 
 SegmentIndexBox = Struct(
-    "type" / Const(b"sidx"),
+    "type" / Const("sidx".encode(STRING_ENCODING)),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "reference_ID" / Int32ub,
     "timescale" / Int32ub,
     "earliest_presentation_time" / IfThenElse(this.version == 0, Int32ub, Int64ub),
@@ -623,8 +569,8 @@ SegmentIndexBox = Struct(
 )
 
 SampleAuxiliaryInformationSizesBox = Struct(
-    "type" / Const(b"saiz"),
-    "version" / Const(Int8ub, 0),
+    "type" / Const("saiz".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23),
         "has_aux_info_type" / Flag,
@@ -640,7 +586,7 @@ SampleAuxiliaryInformationSizesBox = Struct(
 )
 
 SampleAuxiliaryInformationOffsetsBox = Struct(
-    "type" / Const(b"saio"),
+    "type" / Const("saio".encode(STRING_ENCODING)),
     "version" / Int8ub,
     "flags" / BitStruct(
         Padding(23),
@@ -656,48 +602,48 @@ SampleAuxiliaryInformationOffsetsBox = Struct(
 # Movie data box
 
 MovieDataBox = Struct(
-    "type" / Const(b"mdat"),
+    "type" / Const("mdat".encode(STRING_ENCODING)),
     "data" / GreedyBytes
 )
 
 # Media Info Box
 
 SoundMediaHeaderBox = Struct(
-    "type" / Const(b"smhd"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "type" / Const("smhd".encode(STRING_ENCODING)),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "balance" / Default(Int16sb, 0),
-    "reserved" / Const(Int16ub, 0)
+    "reserved" / Const(0, Int16ub)
 )
 
 
 # DASH Boxes
 
 class UUIDBytes(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         return UUID(bytes=obj)
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         return obj.bytes
 
 
 ProtectionSystemHeaderBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"pssh")),
+    "type" / If(this._.type != u"uuid", Const("pssh".encode(STRING_ENCODING))),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "system_ID" / UUIDBytes(Bytes(16)),
     "key_IDs" / Default(If(this.version == 1,
                            PrefixedArray(Int32ub, UUIDBytes(Bytes(16)))),
                         None),
-    "init_data" / Prefixed(Int32ub, GreedyBytes)
+    "init_data" / Prefixed(Int32ub, GreedyBytes, includelength=True)
 )
 
 TrackEncryptionBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"tenc")),
+    "type" / If(this._.type != u"uuid", Const("tenc".encode(STRING_ENCODING))),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "_reserved0" / Const(Int8ub, 0),
-    "_reserved1" / Const(Int8ub, 0),
+    "_reserved0" / Const(0, Int8ub),
+    "_reserved1" / Const(0, Int8ub),
     "is_encrypted" / Int8ub,
     "iv_size" / Int8ub,
     "key_ID" / UUIDBytes(Bytes(16)),
@@ -709,8 +655,8 @@ TrackEncryptionBox = Struct(
 )
 
 SampleEncryptionBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"senc")),
-    "version" / Const(Int8ub, 0),
+    "type" / If(this._.type != u"uuid", Const("senc".encode(STRING_ENCODING))),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(22),
         "has_subsample_encryption_info" / Flag,
@@ -727,21 +673,21 @@ SampleEncryptionBox = Struct(
 )
 
 OriginalFormatBox = Struct(
-    "type" / Const(b"frma"),
-    "original_format" / Default(String(4), b"avc1")
+    "type" / Const("frma".encode(STRING_ENCODING)),
+    "original_format" / Default(PaddedString(4, STRING_ENCODING), b"avc1")
 )
 
 SchemeTypeBox = Struct(
-    "type" / Const(b"schm"),
+    "type" / Const("schm".encode(STRING_ENCODING)),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "scheme_type" / Default(String(4), b"cenc"),
+    "scheme_type" / Default(PaddedString(4, STRING_ENCODING), b"cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
-    "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
+    "schema_uri" / Default(If(this.flags & 1 == 1, CString(STRING_ENCODING)), None)
 )
 
 ProtectionSchemeInformationBox = Struct(
-    "type" / Const(b"sinf"),
+    "type" / Const("sinf".encode(STRING_ENCODING)),
     # TODO: define which children are required 'schm', 'schi' and 'tenc'
     "children" / LazyBound(lambda _: GreedyRange(Box))
 )
@@ -749,7 +695,7 @@ ProtectionSchemeInformationBox = Struct(
 # PIFF boxes
 
 UUIDBox = Struct(
-    "type" / Const(b"uuid"),
+    "type" / Const("uuid".encode(STRING_ENCODING)),
     "extended_type" / UUIDBytes(Bytes(16)),
     "data" / Switch(this.extended_type, {
         UUID("A2394F52-5A9B-4F14-A244-6C427C648DF4"): SampleEncryptionBox,
@@ -758,16 +704,16 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
-ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
+ContainerBoxLazy = LazyBound(lambda : ContainerBox)
 
 
-class TellMinusSizeOf(Subconstruct):
+class TellPlusSizeOf(Subconstruct):
     def __init__(self, subcon):
-        super(TellMinusSizeOf, self).__init__(subcon)
+        super(TellPlusSizeOf, self).__init__(subcon)
         self.flagbuildnone = True
 
     def _parse(self, stream, context, path):
-        return stream.tell() - self.subcon.sizeof(context)
+        return stream.tell() + self.subcon.sizeof(context=context)
 
     def _build(self, obj, stream, context, path):
         return b""
@@ -776,69 +722,69 @@ class TellMinusSizeOf(Subconstruct):
         return 0
 
 
-Box = PrefixedIncludingSize(Int32ub, Struct(
-    "offset" / TellMinusSizeOf(Int32ub),
-    "type" / Peek(String(4, padchar=b" ", paddir="right")),
-    Embedded(Switch(this.type, {
-        b"ftyp": FileTypeBox,
-        b"styp": SegmentTypeBox,
-        b"mvhd": MovieHeaderBox,
-        b"moov": ContainerBoxLazy,
-        b"moof": ContainerBoxLazy,
-        b"mfhd": MovieFragmentHeaderBox,
-        b"tfdt": TrackFragmentBaseMediaDecodeTimeBox,
-        b"trun": TrackRunBox,
-        b"tfhd": TrackFragmentHeaderBox,
-        b"traf": ContainerBoxLazy,
-        b"mvex": ContainerBoxLazy,
-        b"mehd": MovieExtendsHeaderBox,
-        b"trex": TrackExtendsBox,
-        b"trak": ContainerBoxLazy,
-        b"mdia": ContainerBoxLazy,
-        b"tkhd": TrackHeaderBox,
-        b"mdat": MovieDataBox,
-        b"free": FreeBox,
-        b"skip": SkipBox,
-        b"mdhd": MediaHeaderBox,
-        b"hdlr": HandlerReferenceBox,
-        b"minf": ContainerBoxLazy,
-        b"vmhd": VideoMediaHeaderBox,
-        b"dinf": ContainerBoxLazy,
-        b"dref": DataReferenceBox,
-        b"stbl": ContainerBoxLazy,
-        b"stsd": SampleDescriptionBox,
-        b"stsz": SampleSizeBox,
-        b"stz2": SampleSizeBox2,
-        b"stts": TimeToSampleBox,
-        b"stss": SyncSampleBox,
-        b"stsc": SampleToChunkBox,
-        b"stco": ChunkOffsetBox,
-        b"co64": ChunkLargeOffsetBox,
-        b"smhd": SoundMediaHeaderBox,
-        b"sidx": SegmentIndexBox,
-        b"saiz": SampleAuxiliaryInformationSizesBox,
-        b"saio": SampleAuxiliaryInformationOffsetsBox,
-        b"btrt": BitRateBox,
+Box = Prefixed(Int32ub, Struct(
+    "offset" / Tell,
+    "type" / Peek(PaddedString(4, STRING_ENCODING)),
+    "box_body" / Switch(this.type, {
+        u"ftyp": FileTypeBox,
+        u"styp": SegmentTypeBox,
+        u"mvhd": MovieHeaderBox,
+        u"moov": ContainerBoxLazy,
+        u"moof": ContainerBoxLazy,
+        u"mfhd": MovieFragmentHeaderBox,
+        u"tfdt": TrackFragmentBaseMediaDecodeTimeBox,
+        u"trun": TrackRunBox,
+        u"tfhd": TrackFragmentHeaderBox,
+        u"traf": ContainerBoxLazy,
+        u"mvex": ContainerBoxLazy,
+        u"mehd": MovieExtendsHeaderBox,
+        u"trex": TrackExtendsBox,
+        u"trak": ContainerBoxLazy,
+        u"mdia": ContainerBoxLazy,
+        u"tkhd": TrackHeaderBox,
+        u"mdat": MovieDataBox,
+        u"free": FreeBox,
+        u"skip": SkipBox,
+        u"mdhd": MediaHeaderBox,
+        u"hdlr": HandlerReferenceBox,
+        u"minf": ContainerBoxLazy,
+        u"vmhd": VideoMediaHeaderBox,
+        u"dinf": ContainerBoxLazy,
+        u"dref": DataReferenceBox,
+        u"stbl": ContainerBoxLazy,
+        u"stsd": SampleDescriptionBox,
+        u"stsz": SampleSizeBox,
+        u"stz2": SampleSizeBox2,
+        u"stts": TimeToSampleBox,
+        u"stss": SyncSampleBox,
+        u"stsc": SampleToChunkBox,
+        u"stco": ChunkOffsetBox,
+        u"co64": ChunkLargeOffsetBox,
+        u"smhd": SoundMediaHeaderBox,
+        u"sidx": SegmentIndexBox,
+        u"saiz": SampleAuxiliaryInformationSizesBox,
+        u"saio": SampleAuxiliaryInformationOffsetsBox,
+        u"btrt": BitRateBox,
         # dash
-        b"tenc": TrackEncryptionBox,
-        b"pssh": ProtectionSystemHeaderBox,
-        b"senc": SampleEncryptionBox,
-        b"sinf": ProtectionSchemeInformationBox,
-        b"frma": OriginalFormatBox,
-        b"schm": SchemeTypeBox,
-        b"schi": ContainerBoxLazy,
+        u"tenc": TrackEncryptionBox,
+        u"pssh": ProtectionSystemHeaderBox,
+        u"senc": SampleEncryptionBox,
+        u"sinf": ProtectionSchemeInformationBox,
+        u"frma": OriginalFormatBox,
+        u"schm": SchemeTypeBox,
+        u"schi": ContainerBoxLazy,
         # piff
-        b"uuid": UUIDBox,
+        u"uuid": UUIDBox,
         # HDS boxes
-        b'abst': HDSSegmentBox,
-        b'asrt': HDSSegmentRunBox,
-        b'afrt': HDSFragmentRunBox
-    }, default=RawBox)),
-    "end" / Tell
-))
+        u'abst': HDSSegmentBox,
+        u'asrt': HDSSegmentRunBox,
+        u'afrt': HDSFragmentRunBox
+    }, default=RawBox),
+    "end" / TellPlusSizeOf(Int32ub)
+), includelength=True)
 
 ContainerBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, STRING_ENCODING),
     "children" / GreedyRange(Box)
 )
 
