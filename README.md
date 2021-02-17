@@ -72,3 +72,6 @@ Defects / Next steps:
   to be allow a more coherent usage.
 - add new tests to cover all applied changes
 
+## Test
+
+Just run ```make``` to build a virtual env and run tests.
