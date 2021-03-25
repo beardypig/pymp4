@@ -183,7 +183,7 @@ class BoxTests(unittest.TestCase):
         evte = Box.build(dict(type=b"evte", children=[]))
 
     #TODO there is still something nasty when parsing uri box the type is set to b'uri' instead of b'uri ', i did a workaround for this
-    def test_parse_stsd(self):    
+    def test_parse_stsd_urim(self):    
         urim_sample_entry = Box.parse(self.l_stsd_emsg1)
         self.assertEqual( len(urim_sample_entry["entries"]),1)
         for entry in urim_sample_entry["entries"]: 
