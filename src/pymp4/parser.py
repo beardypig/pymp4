@@ -21,9 +21,73 @@ from construct import *
 import construct.core
 from construct.lib import *
 
+# Enum is a construct class. Will clash with python's Enum
+from enum import Enum as PythonEnum
+
 log = logging.getLogger(__name__)
 
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
+
+class BoxType(PythonEnum):
+    """
+    This Enum class contains all the possible types supported by this parser
+    for the "Box" structure, which represents the foundation of how an MP4
+    is represented.
+    """
+    FTYP = b"ftyp"
+    STYP = b"styp"
+    MVHD = b"mvhd"
+    MOOV = b"moov"
+    MOOF = b"moof"
+    MFHD = b"mfhd"
+    TFDT = b"tfdt"
+    TRUN = b"trun"
+    TFHD = b"tfhd"
+    TRAF = b"traf"
+    MVEX = b"mvex"
+    MEHD = b"mehd"
+    TREX = b"trex"
+    TRAK = b"trak"
+    MDIA = b"mdia"
+    TKHD = b"tkhd"
+    MDAT = b"mdat"
+    FREE = b"free"
+    SKIP = b"skip"
+    MDHD = b"mdhd"
+    HDLR = b"hdlr"
+    MINF = b"minf"
+    VMHD = b"vmhd"
+    DINF = b"dinf"
+    DREF = b"dref"
+    STBL = b"stbl"
+    STSD = b"stsd"
+    STSZ = b"stsz"
+    STZ2 = b"stz2"
+    STTS = b"stts"
+    STSS = b"stss"
+    STSC = b"stsc"
+    STCO = b"stco"
+    CO64 = b"co64"
+    SMHD = b"smhd"
+    SIDX = b"sidx"
+    SAIZ = b"saiz"
+    SAIO = b"saio"
+    BTRT = b"btrt"
+    # dash # dash
+    TENC = b"tenc"
+    PSSH = b"pssh"
+    SENC = b"senc"
+    SINF = b"sinf"
+    FRMA = b"frma"
+    SCHM = b"schm"
+    SCHI = b"schi"
+    # piff # piff
+    UUID = b"uuid"
+    # HDS b # HDS b
+    ABST = b'abst'
+    ASRT = b'asrt'
+    AFRT = b'afrt'
+    ELNG = b'elng'
 
 
 class PrefixedIncludingSize(Subconstruct):
@@ -429,6 +493,13 @@ SampleDescriptionBox = Struct(
     "entries" / PrefixedArray(Int32ub, SampleEntryBox)
 )
 
+ExtendedLanguageTag = Struct(
+    "type" / Const(b"elng"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    "extended_language" / CString(encoding="utf8")
+)
+
 SampleSizeBox = Struct(
     "type" / Const(b"stsz"),
     "version" / Int8ub,
@@ -737,7 +808,7 @@ SchemeTypeBox = Struct(
     "flags" / Default(Int24ub, 0),
     "scheme_type" / Default(String(4), b"cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
-    "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
+    "schema_uri" / Default(If(this.flags & 1 == 1, CString(encoding="utf8")), None)
 )
 
 ProtectionSchemeInformationBox = Struct(
@@ -780,59 +851,59 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
     "offset" / TellMinusSizeOf(Int32ub),
     "type" / Peek(String(4, padchar=b" ", paddir="right")),
     Embedded(Switch(this.type, {
-        b"ftyp": FileTypeBox,
-        b"styp": SegmentTypeBox,
-        b"mvhd": MovieHeaderBox,
-        b"moov": ContainerBoxLazy,
-        b"moof": ContainerBoxLazy,
-        b"mfhd": MovieFragmentHeaderBox,
-        b"tfdt": TrackFragmentBaseMediaDecodeTimeBox,
-        b"trun": TrackRunBox,
-        b"tfhd": TrackFragmentHeaderBox,
-        b"traf": ContainerBoxLazy,
-        b"mvex": ContainerBoxLazy,
-        b"mehd": MovieExtendsHeaderBox,
-        b"trex": TrackExtendsBox,
-        b"trak": ContainerBoxLazy,
-        b"mdia": ContainerBoxLazy,
-        b"tkhd": TrackHeaderBox,
-        b"mdat": MovieDataBox,
-        b"free": FreeBox,
-        b"skip": SkipBox,
-        b"mdhd": MediaHeaderBox,
-        b"hdlr": HandlerReferenceBox,
-        b"minf": ContainerBoxLazy,
-        b"vmhd": VideoMediaHeaderBox,
-        b"dinf": ContainerBoxLazy,
-        b"dref": DataReferenceBox,
-        b"stbl": ContainerBoxLazy,
-        b"stsd": SampleDescriptionBox,
-        b"stsz": SampleSizeBox,
-        b"stz2": SampleSizeBox2,
-        b"stts": TimeToSampleBox,
-        b"stss": SyncSampleBox,
-        b"stsc": SampleToChunkBox,
-        b"stco": ChunkOffsetBox,
-        b"co64": ChunkLargeOffsetBox,
-        b"smhd": SoundMediaHeaderBox,
-        b"sidx": SegmentIndexBox,
-        b"saiz": SampleAuxiliaryInformationSizesBox,
-        b"saio": SampleAuxiliaryInformationOffsetsBox,
-        b"btrt": BitRateBox,
+        BoxType.FTYP.value: FileTypeBox,
+        BoxType.STYP.value: SegmentTypeBox,
+        BoxType.MVHD.value: MovieHeaderBox,
+        BoxType.MOOV.value: ContainerBoxLazy,
+        BoxType.MOOF.value: ContainerBoxLazy,
+        BoxType.MFHD.value: MovieFragmentHeaderBox,
+        BoxType.TFDT.value: TrackFragmentBaseMediaDecodeTimeBox,
+        BoxType.TRUN.value: TrackRunBox,
+        BoxType.TFHD.value: TrackFragmentHeaderBox,
+        BoxType.TRAF.value: ContainerBoxLazy,
+        BoxType.MVEX.value: ContainerBoxLazy,
+        BoxType.MEHD.value: MovieExtendsHeaderBox,
+        BoxType.TREX.value: TrackExtendsBox,
+        BoxType.TRAK.value: ContainerBoxLazy,
+        BoxType.MDIA.value: ContainerBoxLazy,
+        BoxType.TKHD.value: TrackHeaderBox,
+        BoxType.MDAT.value: MovieDataBox,
+        BoxType.FREE.value: FreeBox,
+        BoxType.SKIP.value: SkipBox,
+        BoxType.MDHD.value: MediaHeaderBox,
+        BoxType.HDLR.value: HandlerReferenceBox,
+        BoxType.MINF.value: ContainerBoxLazy,
+        BoxType.VMHD.value: VideoMediaHeaderBox,
+        BoxType.DINF.value: ContainerBoxLazy,
+        BoxType.DREF.value: DataReferenceBox,
+        BoxType.STBL.value: ContainerBoxLazy,
+        BoxType.STSD.value: SampleDescriptionBox,
+        BoxType.STSZ.value: SampleSizeBox,
+        BoxType.STZ2.value: SampleSizeBox2,
+        BoxType.STTS.value: TimeToSampleBox,
+        BoxType.STSS.value: SyncSampleBox,
+        BoxType.STSC.value: SampleToChunkBox,
+        BoxType.STCO.value: ChunkOffsetBox,
+        BoxType.CO64.value: ChunkLargeOffsetBox,
+        BoxType.SMHD.value: SoundMediaHeaderBox,
+        BoxType.SIDX.value: SegmentIndexBox,
+        BoxType.SAIZ.value: SampleAuxiliaryInformationSizesBox,
+        BoxType.SAIO.value: SampleAuxiliaryInformationOffsetsBox,
+        BoxType.BTRT.value: BitRateBox,
         # dash
-        b"tenc": TrackEncryptionBox,
-        b"pssh": ProtectionSystemHeaderBox,
-        b"senc": SampleEncryptionBox,
-        b"sinf": ProtectionSchemeInformationBox,
-        b"frma": OriginalFormatBox,
-        b"schm": SchemeTypeBox,
-        b"schi": ContainerBoxLazy,
+        BoxType.TENC.value: TrackEncryptionBox,
+        BoxType.PSSH.value: ProtectionSystemHeaderBox,
+        BoxType.SENC.value: SampleEncryptionBox,
+        BoxType.SINF.value: ProtectionSchemeInformationBox,
+        BoxType.FRMA.value: OriginalFormatBox,
+        BoxType.SCHM.value: SchemeTypeBox,
+        BoxType.SCHI.value: ContainerBoxLazy,
         # piff
-        b"uuid": UUIDBox,
+        BoxType.UUID.value: UUIDBox,
         # HDS boxes
-        b'abst': HDSSegmentBox,
-        b'asrt': HDSSegmentRunBox,
-        b'afrt': HDSFragmentRunBox
+        BoxType.ABST.value: HDSSegmentBox,
+        BoxType.ASRT.value: HDSSegmentRunBox,
+        BoxType.AFRT.value: HDSFragmentRunBox
     }, default=RawBox)),
     "end" / Tell
 ))
@@ -843,3 +914,5 @@ ContainerBox = Struct(
 )
 
 MP4 = GreedyRange(Box)
+
+BoxClass = type(Box)
