@@ -88,7 +88,17 @@ class BoxType(PythonEnum):
     ASRT = b'asrt'
     AFRT = b'afrt'
     ELNG = b'elng'
-
+    # Event Message Track
+    EMSG = b"emsg"
+    EMBE = b"embe"
+    EMEB = b"emeb"
+    EMIB = b"emib"
+    EVTE = b"evte"
+    URIM = b"urim"
+    URI_ = b"uri "
+    URII = b"uriI"
+    
+ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)    
 
 class PrefixedIncludingSize(Subconstruct):
     __slots__ = ["name", "lengthfield", "subcon"]
@@ -143,6 +153,31 @@ class PrefixedIncludingSize(Subconstruct):
     def _sizeof(self, context, path):
         return self.lengthfield._sizeof(context, path) + self.subcon._sizeof(context, path)
 
+
+# MetaDataSampleEntry
+
+URIBox = Struct(
+    "type" / Const(b"uri "),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
+    "theURI" / CString()
+)
+
+
+URIInitBox = Struct(
+    "type" / Const(b"uriI"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0),
+    "uri_initialization_data" / GreedyBytes
+)
+
+EventMessageSampleEntry = Struct(
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
+
+URIMetaSampleEntry = Struct(
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
 
 # Header box
 
@@ -475,9 +510,13 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         b"mp4a": MP4ASampleEntryBox,
         b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
-        b"encv": AVC1SampleEntryBox
+        b"encv": AVC1SampleEntryBox,
+        b"evte": EventMessageSampleEntry,
+        b"urim": URIMetaSampleEntry
     }, Struct("data" / GreedyBytes)))
 ))
+
+
 
 BitRateBox = Struct(
     "type" / Const(b"btrt"),
@@ -574,6 +613,8 @@ ChunkLargeOffsetBox = Struct(
         "chunk_offset" / Int64ub,
     ))
 )
+
+
 
 # Movie Fragment boxes, contained in moof box
 
@@ -751,7 +792,57 @@ class UUIDBytes(Adapter):
     def _encode(self, obj, context):
         return obj.bytes
 
+# event message boxes
+EventMessageInstanceBox = Struct(
+    "type" / Const(b"emib"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    "reserved" / Default(Int32ub, 0),
+    "presentation_time_delta" / Int64sb,
+    "duration" / Int32ub,
+    "id" / Int32ub,
+    "scheme_id_uri" / CString(),
+    "value" / CString(), 
+    "message_data" / GreedyBytes,
+)
+    
 
+DASHEventMessageBox = Struct(
+    "type" / Const(b"emsg"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    Embedded(Switch(this.version, {
+        0: Struct(
+            "scheme_id_uri" /  CString(),
+            "value" /  CString(), 
+            "timescale" / Default(Int32ub, 0),
+            "presentation_time_delta" / Default(Int32ub, 0),
+            "event_duration" / Int32ub,
+            "id" / Int32ub,
+        ),
+        1: Struct(
+            "timescale" / Default(Int32ub, 0),
+            "presentation_time" / Default(Int64ub, 0),
+            "event_duration" / Int32ub,
+            "id" / Int32ub,
+            "scheme_id_uri" /  CString(),
+            "value" /  CString(), 
+        ),
+    })),
+    "message_data" / GreedyBytes, 
+)
+
+
+
+EventMessageEmptyBox = Struct(
+     "type" / Const(b"emeb")
+)
+
+EventMessageBoxEmptyCue = Struct(
+     "type" / Const(b"embe")
+)
+
+# pssh boxes
 ProtectionSystemHeaderBox = Struct(
     "type" / If(this._.type != b"uuid", Const(b"pssh")),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
@@ -829,7 +920,7 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
-ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
+
 
 
 class TellMinusSizeOf(Subconstruct):
@@ -903,7 +994,16 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         # HDS boxes
         BoxType.ABST.value: HDSSegmentBox,
         BoxType.ASRT.value: HDSSegmentRunBox,
-        BoxType.AFRT.value: HDSFragmentRunBox
+        BoxType.AFRT.value: HDSFragmentRunBox,
+        # event track 
+        BoxType.EMSG.value: DASHEventMessageBox,
+        BoxType.EMBE.value: EventMessageBoxEmptyCue,
+        BoxType.EMEB.value: EventMessageEmptyBox, 
+        BoxType.EMIB.value: EventMessageInstanceBox,
+        BoxType.URIM.value: URIMetaSampleEntry,
+        BoxType.EVTE.value: EventMessageSampleEntry,
+        BoxType.URI_.value: URIBox, 
+        BoxType.URII.value: URIInitBox
     }, default=RawBox)),
     "end" / Tell
 ))
