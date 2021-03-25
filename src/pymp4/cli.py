@@ -4,9 +4,9 @@ import io
 import logging
 import argparse
 
-from pymp4.parser import Box
+from parser import Box
 from construct import setglobalfullprinting
-from pymp4.summary import Summary
+from summary import Summary
 
 log = logging.getLogger(__name__)
 setglobalfullprinting(True)
