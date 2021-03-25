@@ -96,6 +96,7 @@ class BoxType(PythonEnum):
     EVTE = b"evte"
     URIM = b"urim"
     URI_ = b"uri "
+    URI = b"uri"
     URII = b"uriI"
     
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)    
@@ -157,7 +158,7 @@ class PrefixedIncludingSize(Subconstruct):
 # MetaDataSampleEntry
 
 URIBox = Struct(
-    "type" / Const(b"uri "),
+    "type" / Const(b'uri '),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
     "theURI" / CString()
@@ -1003,6 +1004,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         BoxType.URIM.value: URIMetaSampleEntry,
         BoxType.EVTE.value: EventMessageSampleEntry,
         BoxType.URI_.value: URIBox, 
+        BoxType.URI.value: URIBox, 
         BoxType.URII.value: URIInitBox
     }, default=RawBox)),
     "end" / Tell
