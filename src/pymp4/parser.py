@@ -73,6 +73,10 @@ class BoxType(PythonEnum):
     SAIZ = b"saiz"
     SAIO = b"saio"
     BTRT = b"btrt"
+    META = b"meta"
+    IPRO = b"ipro"
+    PITM = b"pitm"
+    PRFT = b"prft"
     # dash # dash
     TENC = b"tenc"
     PSSH = b"pssh"
@@ -615,14 +619,51 @@ ChunkLargeOffsetBox = Struct(
     ))
 )
 
+# Movie Fragment boxes, contained in moof box
 
+MetaBox = Struct(
+    "type" / Const(b"meta"),
+    "version" / Const(Int8ub, 0),
+     Padding(3, pattern=b"\x00"),
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
+
+PrimaryItemBox = Struct(
+    "type" / Const(b"pitm"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    Embedded(Switch(this.version, {
+        0: "item_ID" / Int16ub,
+        1: "item_ID" / Int32ub,
+    })),
+)
+
+ItemProtectionBox = Struct(
+    "type" / Const(b"ipro"),
+    "version" / Const(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    "protection_count" / Int16ub,
+    "protection_information" / LazyBound(lambda _: GreedyRange(Box))
+)
+
+ProducerReferenceTimeBox = Struct(
+    "type" / Const(b"prft"),
+    "version" / Default(Int8ub, 0),
+    Padding(3, pattern=b"\x00"),
+    "reference_track_ID" / Int32ub, 
+    "ntp_timestamp" / Int64ub,
+    Embedded(Switch(this.version, {
+        0: "media_time" / Int32ub,
+        1: "media_time" / Int64ub,
+    })),
+)
 
 # Movie Fragment boxes, contained in moof box
 
 MovieFragmentHeaderBox = Struct(
     "type" / Const(b"mfhd"),
     "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+     "flags" / Const(Int24ub, 0),
     "sequence_number" / Int32ub
 )
 
@@ -982,6 +1023,12 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         BoxType.SAIZ.value: SampleAuxiliaryInformationSizesBox,
         BoxType.SAIO.value: SampleAuxiliaryInformationOffsetsBox,
         BoxType.BTRT.value: BitRateBox,
+
+        # Meta boxes (for completeness)
+        BoxType.META.value: MetaBox,
+        BoxType.PITM.value: PrimaryItemBox,
+        BoxType.IPRO.value: ItemProtectionBox,
+        BoxType.PRFT.value: ProducerReferenceTimeBox,
         # dash
         BoxType.TENC.value: TrackEncryptionBox,
         BoxType.PSSH.value: ProtectionSystemHeaderBox,
