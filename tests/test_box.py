@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 
 class BoxTests(unittest.TestCase):
-    ## some chil boxes in the movie header box
+    ## some child boxes of the movie header box
     l_stsd1 = b'\x00\x00\x00\x98stsd\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x88avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05\x00\x02\xd0\x00H\x00\x00\x00H\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18\xff\xff\x00\x00\x002avcC\x01d\x00\x1f\xff\x01\x00\x1agd\x00\x1f\xac\xd9@P\x05\xbb\x01\x10\x00\x00\x03\x00\x10\x00\x00\x03\x03 \xf1\x83\x19`\x01\x00\x05h\xeb\xec\xb2,'
     l_mvex_1 =b'\x00\x00\x00(mvex\x00\x00\x00 trex\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
     l_dinf = b'\x00\x00\x00$dinf\x00\x00\x00\x1cdref\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x0curl \x00\x00\x00\x01'
@@ -34,7 +34,8 @@ class BoxTests(unittest.TestCase):
     l_stsd2 = b'\x00\x00\x00ustsd\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00eencv\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05\x00\x02\xd0\x00H\x00\x00\x00H\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18\xff\xff\x00\x00\x00\x0favcC\x01d\x00\x1f\xff\x00\x00'
     l_pssh = b'\x00\x00\x002pssh\x00\x00\x00\x00\xed\xef\x8b\xa9y\xd6J\xce\xa3\xc8\'\xdc\xd5\x1d!\xed\x00\x00\x00\x12"\nholy_grailH\xe3\xdc\x95\x9b\x06'
     l_tenc = b'\x00\x00\x00 tenc\x00\x00\x00\x00\x00\x00\x01\x08N-P\x9au?^&\xb2S\xcb}!\xc3\xbf\x05'
-
+    
+    # some child boxes of event message track
     l_stsd_emsg1 = b'\x00\x00\x00Estsd\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x005urim\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00%uri \x00\x00\x00\x00urn:mpeg:dash:event:2012\x00'
     l_mvex_emsg1 = b'\x00\x00\x00(mvex\x00\x00\x00 trex\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00c\x00\x00\x00\x00\x00\x00\x00\x00'
     l_mvhd_emsg1 = b'\x00\x00\x00lmvhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x002\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02'
@@ -59,6 +60,12 @@ class BoxTests(unittest.TestCase):
     l_trun2_emsg = b'\x00\x00\x00\x14trun\x01\x00\x00\x01\x00\x00\x00y\x00\x00\x00p'
     l_mfhd2_emsg = b'\x00\x00\x00\x10mfhd\x00\x00\x00\x00\x00\x00\x00\x02'
     l_tfhd2_emsg = b'\x00\x00\x00 tfhd\x00\x02\x00:\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x05\xdd\x00\x00\x00\x08\x01\x01\x00\x00'
+    
+    ## some event message boxes 
+    l_emsg1 =b'\x00\x00\x00Zemsg\x00\x00\x00\x00urn:scte:scte35:2013:bin\x00\x00\x00\x002\x00\x00\x00\x00\x00\x00\x03\x90\x00\x00\x00\x03+\xfc0!\x00\x00\x00\x00\x00\x00\x00\xff\xf0\x10\x05\x00\x00\x03+\x7f\xef\x7f\xfe\x00\x1a\x17\xb0\xc0\x00\x00\x00\x00\x00\xe4a$\x02'
+    l_emsg2 =b'\x00\x00\x00Zemsg\x00\x00\x00\x00urn:scte:scte35:2013:bin\x00\x00\x00\x002\x00\x00\x00\x00\x00\x00\x03\x90\x00\x00\x00\x03,\xfc0!\x00\x00\x00\x00\x00\x00\x00\xff\xf0\x10\x05\x00\x00\x03,\x7f\xef\x7f\xfe\x00\x1a\x17\xb0\xc0\x00\x00\x00\x00\x00\xfe\xcc\xb92'
+    l_embe = b'\x00\x00\x00\x08embe'
+    l_emeb = b'\x00\x00\x00\x08emeb'
 
     def test_ftyp_parse(self):
         self.assertEqual(
@@ -167,22 +174,76 @@ class BoxTests(unittest.TestCase):
             (end=len(in_bytes))
         )
 
+
+    def test_parse_emsg(self):
+        emsg1 = Box.parse(self.l_emsg1) 
+        self.assertEqual(emsg1["type"],b'emsg')
+        self.assertEqual(emsg1["version"],0)
+        self.assertEqual(emsg1["id"],811)
+        self.assertEqual(emsg1["event_duration"],233472)
+        self.assertEqual(emsg1["scheme_id_uri"], b'urn:scte:scte35:2013:bin')
+        self.assertEqual(emsg1["message_data"], b'\xfc0!\x00\x00\x00\x00\x00\x00\x00\xff\xf0\x10\x05\x00\x00\x03+\x7f\xef\x7f\xfe\x00\x1a\x17\xb0\xc0\x00\x00\x00\x00\x00\xe4a$\x02')
+
+        emsg2 = Box.parse(self.l_emsg2) 
+        self.assertEqual(emsg2["type"],b'emsg')
+        self.assertEqual(emsg2["version"],0)
+        self.assertEqual(emsg2["id"],812)
+        self.assertEqual(emsg2["event_duration"],233472)
+        self.assertEqual(emsg2["scheme_id_uri"], b'urn:scte:scte35:2013:bin')
+        self.assertEqual(emsg2["message_data"],b'\xfc0!\x00\x00\x00\x00\x00\x00\x00\xff\xf0\x10\x05\x00\x00\x03,\x7f\xef\x7f\xfe\x00\x1a\x17\xb0\xc0\x00\x00\x00\x00\x00\xfe\xcc\xb92')
+        
+        embe1 = Box.parse(self.l_embe)
+        self.assertEqual(embe1["type"], b'embe')
+
     def test_build_emsg(self):
-        emsg = Box.build(dict(
+        emsg_b = Box.build(dict(
             type=b"emsg",
             version=1,
             presentation_time=1000,
-            value=b"",
+            value=b'',
             id=1,
-            scheme_id_uri=b"my_test_scheme\0",
+            scheme_id_uri=b"my_test_scheme",
             event_duration=20,
-            timescale=0,
+            timescale=1,
             message_data=b"asdfdasgfaghhgsdgh"))
-    
+
+        emsg_b_p = Box.parse(emsg_b)
+        self.assertEqual(emsg_b_p["type"], b'emsg')
+        self.assertEqual(emsg_b_p["version"], 1)
+        self.assertEqual(emsg_b_p["presentation_time"], 1000)
+        self.assertEqual(emsg_b_p["value"],b'' )
+        self.assertEqual(emsg_b_p["id"], 1)
+        self.assertEqual(emsg_b_p["scheme_id_uri"], b"my_test_scheme")
+        self.assertEqual(emsg_b_p["event_duration"], 20)
+        self.assertEqual(emsg_b_p["timescale"], 1)
+        self.assertEqual(emsg_b_p["message_data"],b"asdfdasgfaghhgsdgh")
+
+    def test_build_emib(self):
+        emib_b = Box.build(dict(
+            type=b"emib",
+            version=0,
+            reserved=1,
+            presentation_time_delta=-1000,
+            value=b'',
+            id=1,
+            scheme_id_uri=b"my_test_scheme",
+            duration=2000,
+            message_data=b"asdfdasgfaghhgsdgh"))
+
+        emib_b_p = Box.parse(emib_b)
+        self.assertEqual(emib_b_p["type"], b'emib')
+        self.assertEqual(emib_b_p["presentation_time_delta"], -1000)
+        self.assertEqual(emib_b_p["value"],b'' )
+        self.assertEqual(emib_b_p["id"], 1)
+        self.assertEqual(emib_b_p["scheme_id_uri"], b"my_test_scheme")
+        self.assertEqual(emib_b_p["duration"], 2000)
+        self.assertEqual(emib_b_p["reserved"], 1)
+        self.assertEqual(emib_b_p["message_data"],b"asdfdasgfaghhgsdgh")
+
     def test_build_evte(self):
         evte = Box.build(dict(type=b"evte", children=[]))
 
-    #TODO there is still something nasty when parsing uri box the type is set to b'uri' instead of b'uri ', i did a workaround for this
+    #TODO there is still something nasty when parsing uri box the type is set to b'uri' instead of b'uri ', i did a workaround for this by having two aliases uri and uri '
     def test_parse_stsd_urim(self):    
         urim_sample_entry = Box.parse(self.l_stsd_emsg1)
         self.assertEqual( len(urim_sample_entry["entries"]),1)
@@ -192,3 +253,4 @@ class BoxTests(unittest.TestCase):
                 if l_child["type"] != b"uriI":
                     self.assertEqual(l_child["type"][0:3], b'uri')
                     self.assertEqual(l_child["theURI"], b"urn:mpeg:dash:event:2012")
+    
