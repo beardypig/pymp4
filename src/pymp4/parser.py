@@ -1065,3 +1065,102 @@ ContainerBox = Struct(
 MP4 = GreedyRange(Box)
 
 BoxClass = type(Box)
+
+
+# simple helper for recursive box search
+def find_child_box_by_type(parent_box, box_type):
+    res = None
+    if (parent_box["type"] == box_type):
+        return parent_box
+    else:
+        if "children" in parent_box:
+            for child_box in parent_box["children"]:
+                res = find_child_box_by_type(child_box, box_type)
+                if (res != None):
+                    return res
+        else:
+            return None
+
+
+
+# find samples in case of progressive mp4
+def find_samples_progressive(trak_box):
+    
+    sample_count = 0
+    samples = []
+
+    # edit list and sample table 
+    stbl = find_child_box_by_type(trak_box, b"stbl")
+    elst = find_child_box_by_type(trak_box, b"elst")
+
+    if stbl != None:
+        # children of sample table
+        stts = find_child_box_by_type(stbl, b"stts")
+        ctts = find_child_box_by_type(stbl, b"ctts")
+        stsz = find_child_box_by_type(stbl, b"stsz")
+        stsc = find_child_box_by_type(stbl, b"stsc")
+        stco = find_child_box_by_type(stbl, b"stco")
+        st64 = find_child_box_by_type(stbl, b"co64")
+        
+        # find number of samples
+        if "sample_count" in stsz:
+            sample_count = stsz["sample_count"]
+            #print ("number of samples is", sample_count)
+
+        current_time = 0
+
+        for a in stts.entries:
+            for z in range(a["sample_count"]):
+                current_time = current_time + a["sample_delta"]
+                samples.append( { 'decode_time': current_time } )
+
+        if ctts != None: ## composition times not yet supported
+            print("composition times not yet supported")
+
+        if elst != None: ## composition times not yet supported
+            print("edit list not yet supported")
+
+        if stsz["sample_size"] == 0:
+            for a in range(stsz.sample_count):
+                 samples[a]["size"] = stsz["entry_sizes"][a]
+        else:
+            for a in range(stsz.entry_count):
+                 samples[a]["size"] = stsz["sample_size"]
+
+        current_sample = 0
+        current_chunk = stsc.entries[0]["first_chunk"]
+        i = 0
+
+        while current_sample < sample_count:
+            for j in range(stsc.entries[i]["samples_per_chunk"]):
+                if(current_sample < len(samples)):
+                    samples[current_sample]["chunk"] = current_chunk
+                    current_sample += 1       
+            current_chunk += 1
+            if (i < (len(stsc.entries) - 1)):
+                if stsc.entries[i + 1]["first_chunk"] == current_chunk:
+                    i = i + 1
+        
+        st = None
+        if (stco != None):
+            st = stco 
+        elif (st64 != None):
+            st = st64
+
+        if (st != None):
+            for sample in samples:
+                print ("sample nr and lenght of entries", sample["chunk"] - 1 , len(st["entries"]) )
+                sample["chunk_offset"] = st["entries"][sample["chunk"] - 1]["chunk_offset"]
+        
+        sample_size = 0
+
+        for i in range(len(samples)):
+            samples[i]["offset"] =  samples[i]["chunk_offset"] + sample_size 
+            sample_size += samples[i]["size"]
+            if (i < len(samples) -1):
+                if (samples[i]["chunk_offset"] != samples[i+1]["chunk_offset"]):
+                    sample_size = 0
+
+        return samples
+    else:
+        return None 
