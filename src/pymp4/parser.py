@@ -50,6 +50,8 @@ class BoxType(PythonEnum):
     TRAK = b"trak"
     MDIA = b"mdia"
     TKHD = b"tkhd"
+    ELST = b"elst"
+    EDTS = b"edts"
     MDAT = b"mdat"
     FREE = b"free"
     SKIP = b"skip"
@@ -68,6 +70,7 @@ class BoxType(PythonEnum):
     STSC = b"stsc"
     STCO = b"stco"
     CO64 = b"co64"
+    CTTS = b"ctts"
     SMHD = b"smhd"
     SIDX = b"sidx"
     SAIZ = b"saiz"
@@ -174,6 +177,11 @@ URIInitBox = Struct(
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
     "uri_initialization_data" / GreedyBytes
+)
+
+EditBox = Struct(
+    "type" / Const(b"edts"),
+    "children" / LazyBound(lambda _: GreedyRange(Box))
 )
 
 EventMessageSampleEntry = Struct(
@@ -332,6 +340,45 @@ HDSFragmentRunBox = Struct(
     ))
 )
 
+EditListBox = Struct(
+    "type" / Const(b"elst"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    Embedded(Switch(this.version, {
+        0: Struct( "entries" / PrefixedArray(Int32ub, Struct(
+        "edit_duration" / Int32ub,
+        "media_time" / Int32ub,
+        ))),
+        1: Struct( "entries" / PrefixedArray(Int32ub, Struct(
+        "edit_duration" / Int64ub,
+        "media_time" / Int64ub,
+        ))
+        ),
+    })),
+    "media_rate_integer" / Int16sb,
+    "media_rate_fraction" / Int16sb,
+)
+
+CompositionOffsetBox = Struct(
+    "type" / Const(b"ctts"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Const(Int24ub, 0),
+    Embedded(Switch(this.version, {
+        0: Struct( "entries" / PrefixedArray(Int32ub, Struct(
+        "sample_count" / Int32ub,
+        "sampe_offest" / Int32ub,
+        ))),
+        1: Struct( "entries" / PrefixedArray(Int32ub, Struct(
+        "sample_count" / Int32ub,
+        "sample_offset" / Int32sb,
+        ))
+        ),
+    })),
+    "media_rate_integer" / Int16sb,
+    "media_rate_fraction" / Int16sb,
+)
+
+    
 
 # Boxes contained by Media Box
 
@@ -633,8 +680,8 @@ PrimaryItemBox = Struct(
     "version" / Default(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     Embedded(Switch(this.version, {
-        0: "item_ID" / Int16ub,
-        1: "item_ID" / Int32ub,
+        0: Struct("item_ID" / Int16ub),
+        1: Struct("item_ID" / Int32ub,
     })),
 )
 
@@ -653,8 +700,8 @@ ProducerReferenceTimeBox = Struct(
     "reference_track_ID" / Int32ub, 
     "ntp_timestamp" / Int64ub,
     Embedded(Switch(this.version, {
-        0: "media_time" / Int32ub,
-        1: "media_time" / Int64ub,
+        0: Struct( "media_time" / Int32ub),
+        1: Struct("media_time" / Int64ub),
     })),
 )
 
@@ -992,6 +1039,8 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         BoxType.MFHD.value: MovieFragmentHeaderBox,
         BoxType.TFDT.value: TrackFragmentBaseMediaDecodeTimeBox,
         BoxType.TRUN.value: TrackRunBox,
+        BoxType.EDTS.value: EditBox,
+        BoxType.ELST.value: EditListBox,
         BoxType.TFHD.value: TrackFragmentHeaderBox,
         BoxType.TRAF.value: ContainerBoxLazy,
         BoxType.MVEX.value: ContainerBoxLazy,
@@ -1017,6 +1066,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         BoxType.STSS.value: SyncSampleBox,
         BoxType.STSC.value: SampleToChunkBox,
         BoxType.STCO.value: ChunkOffsetBox,
+        BoxType.CTTS.value: CompositionOffsetBox, 
         BoxType.CO64.value: ChunkLargeOffsetBox,
         BoxType.SMHD.value: SoundMediaHeaderBox,
         BoxType.SIDX.value: SegmentIndexBox,
@@ -1164,3 +1214,25 @@ def find_samples_progressive(trak_box):
         return samples
     else:
         return None 
+
+
+
+# find samples in case of progressive mp4
+def find_samples_fragmented(ftyp_box, movie_box, movie_fragment_box):
+
+    sample_count = 0
+    samples = []
+    
+    ## right now assume single track per segment
+    trex = find_child_box_by_type(movie_box, b"trex")   
+    ## unsigned int(32)	track_ID 
+    ## unsigned int(32)	default_sample_description_index;
+	## unsigned int(32)	default_sample_duration; 
+    ## unsigned int(32)	default_sample_size; 
+    ## unsigned int(32)	default_sample_flags;
+    
+    mehd = find_child_box_by_type(movie_box, b"mehd")
+    ## default "fragment_duration"
+    
+    elst = find_child_box_by_type(movie_box, b"elst")
+    ## shifts the presenation timeline, support 1 edit
