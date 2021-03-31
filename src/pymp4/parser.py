@@ -1149,7 +1149,7 @@ def find_samples_progressive(trak_box):
 
         if (st != None):
             for sample in samples:
-                print ("sample nr and lenght of entries", sample["chunk"] - 1 , len(st["entries"]) )
+                #print ("sample nr and lenght of entries", sample["chunk"] - 1 , len(st["entries"]) )
                 sample["chunk_offset"] = st["entries"][sample["chunk"] - 1]["chunk_offset"]
         
         sample_size = 0
