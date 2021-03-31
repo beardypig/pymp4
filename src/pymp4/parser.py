@@ -1222,6 +1222,16 @@ def find_samples_fragmented(ftyp_box, movie_box, movie_fragment_box):
 
     sample_count = 0
     samples = []
+
+    if movie_fragment_box == None: 
+        print("no movie fragment box given")
+        return None
+
+    if movie_box == None: 
+        print("error no movie box given")
+        return None
+
+    movie_fragment_size = movie_fragment_box["end"] - movie_fragment_box["offset"]
     
     ## right now assume single track per segment
     trex = find_child_box_by_type(movie_box, b"trex")   
@@ -1235,4 +1245,36 @@ def find_samples_fragmented(ftyp_box, movie_box, movie_fragment_box):
     ## default "fragment_duration"
     
     elst = find_child_box_by_type(movie_box, b"elst")
-    ## shifts the presenation timeline, support 1 edit
+    ## shifts composition to media presentation timeline 
+    
+    traf_boxes = [] 
+    for traf_box in movie_fragment_box: 
+        if traf_box[b"type"] == "traf":
+            traf_boxes.append(traf_box)
+    
+    if len(traf_boxes) == 0):
+        print "error no traf box in movie fragment"
+        return None
+
+    elif len(traf_boxes) > 1:
+        print "error only single traf box supported by validator, multiple traf boxes found"
+        return None
+    
+    # in first version only check the single traf box
+    elif len(traf_boxes) == 1:
+        trf = traf_boxes[0]
+        tfhd = find_child_box_by_type( trf, b"mehd")
+
+        if(tfhd["flags"]["duration_is_empty"]):
+            print("fragment duration is empty, returning empty list")
+            return [] 
+        elif(not(tfhd["flags"]["base-data-offset-present"] == 0 and tfhd[flags]["default-base-is-moof "] == 1)):
+            print("error this version only supports default base is moof == 1 and base-data-offset-present==0")
+            return None 
+         
+          
+
+         trun = find_child_box_by_type( trf, b"trun")
+         if(trun == None):
+
+    
