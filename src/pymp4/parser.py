@@ -105,6 +105,22 @@ class BoxType(PythonEnum):
     URI_ = b"uri "
     URI = b"uri"
     URII = b"uriI"
+
+    ## timed text subtitle
+    VTTC = b"vttC"
+    VLAB = b"vlab"
+    STHD = b'sthd'
+    NMHD = b'nmhd'
+
+    ##VTT internal
+    VTTc = b'vttc' 
+    VSID = b'vsid'
+    CTIM = b'ctim'
+    IDEN = b'iden'
+    STTG = b'sttg'
+    PAY1 = b'pay1'
+    VTTE = b'vtte'
+    VTTA = b'vtta' 
     
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)    
 
@@ -192,6 +208,29 @@ URIMetaSampleEntry = Struct(
     "children" / LazyBound(lambda _: GreedyRange(Box))
 )
 
+XMLSubtitleSampleEntry = Struct(
+    "namespace" / CString(encoding="utf8")
+    ##"theURI" / CString(encoding="utf8")
+)
+
+WebVTTConfigurationBox = Struct(
+    "type" / Const(b'vttC'),
+    "config" / CString()
+)
+
+WebVTTSourceLabelBox = Struct(
+    "type" / Const(b'vlab') ,
+    "source_label" / CString(encoding="utf-8")
+)
+
+WVTTSampleEntry = Struct(
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
+
+URIMetaSampleEntry = Struct(
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
+
 # Header box
 
 FileTypeBox = Struct(
@@ -223,6 +262,18 @@ FreeBox = Struct(
 SkipBox = Struct(
     "type" / Const(b"skip"),
     "data" / GreedyBytes
+)
+
+NullMediaHeaderBox = Struct(
+    "type" / Const(b"nmhd"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0)
+)
+
+SubtitleMediaHeaderBox = Struct(
+    "type" / Const(b"sthd"),
+    "version" / Default(Int8ub, 0),
+    "flags" / Default(Int24ub, 0)
 )
 
 # Movie boxes, contained in a moov Box
@@ -564,7 +615,9 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         b"avc1": AVC1SampleEntryBox,
         b"encv": AVC1SampleEntryBox,
         b"evte": EventMessageSampleEntry,
-        b"urim": URIMetaSampleEntry
+        b"urim": URIMetaSampleEntry, 
+        b"stpp": XMLSubtitleSampleEntry, 
+        b"wvtt": WVTTSampleEntry,
     }, Struct("data" / GreedyBytes)))
 ))
 
@@ -1013,6 +1066,47 @@ UUIDBox = Struct(
 
 
 
+### webVTT Cue boxes (only for use in samples, this is not for use in ISO-BMFF)
+VTTCueBox = Struct(
+    "type" / Const(b'vttc'),
+    "children" / LazyBound(lambda _: GreedyRange(Box))
+)
+
+CueSourceIDBox = Struct( 
+    "type" / Const(b'vsid'), 
+    "source_ID" / Int32sb 
+)
+
+CueTimeBox = Struct(
+     "type"  / Const(b'ctim'),
+     "cue_current_time" / CString(encoding="utf-8")
+)
+
+CueIDBox = Struct(
+   "type" / Const(b'iden'),
+   "cue_id"/ CString(encoding="utf-8")
+)
+
+CueSettingsBox = Struct(
+     "type"/ Const(b'sttg'),
+     "settings"/ CString(encoding="utf-8")
+)
+
+CuePayLoadBox = Struct(
+     "type"/ Const(b'pay1'),
+     "cue_text"/ CString(encoding="utf-8")
+)
+
+VTTEmptyCueBox = Struct(
+     "type" / Const(b'vtte') 
+)
+
+VTTAdditionalTextBox = Struct(
+     "type" / Const(b'vtta'), 
+     "cue_additional_text" / CString(encoding="utf-8") 
+)
+
+
 class TellMinusSizeOf(Subconstruct):
     def __init__(self, subcon):
         super(TellMinusSizeOf, self).__init__(subcon)
@@ -1103,7 +1197,23 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         BoxType.EVTE.value: EventMessageSampleEntry,
         BoxType.URI_.value: URIBox, 
         BoxType.URI.value: URIBox, 
-        BoxType.URII.value: URIInitBox
+        BoxType.URII.value: URIInitBox,
+
+        # subtitle 
+        BoxType.NMHD.value: NullMediaHeaderBox, 
+        BoxType.STHD.value: SubtitleMediaHeaderBox,
+        BoxType.VTTC.value: WebVTTConfigurationBox,
+        BoxType.VLAB.value: WebVTTSourceLabelBox, 
+
+        # VTT internal
+        BoxType.VTTc.value : VTTCueBox,
+        BoxType.VSID.value : CueSourceIDBox, 
+        BoxType.CTIM.value : CueTimeBox,
+        BoxType.IDEN.value : CueIDBox,
+        BoxType.STTG.value : CueSettingsBox,
+        BoxType.PAY1.value : CuePayLoadBox,
+        BoxType.VTTE.value : VTTEmptyCueBox,
+        BoxType.VTTA.value : VTTAdditionalTextBox
     }, default=RawBox)),
     "end" / Tell
 ))
@@ -1359,7 +1469,7 @@ def find_samples_fragmented(movie_box, movie_fragment_box, supress_flags=False):
                     l_defs["edit_composition_offset"] = track_infos[i]["edit_composition_offset"] \
                         * track_infos[i]["timescale"] / movie_timescale
          
-        if( "track_id_found"not in  l_defs):
+        if( "track_id_found" not in  l_defs):
             print("error track id not found")
             print(track_infos)
             return
@@ -1450,11 +1560,3 @@ def find_samples_fragmented(movie_box, movie_fragment_box, supress_flags=False):
     else: 
         print("error current version of verify only supports single trun box per track fragment box")
         return None
-
-       
-
-
-        
-
-
-    
