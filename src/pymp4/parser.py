@@ -681,7 +681,7 @@ PrimaryItemBox = Struct(
     "flags" / Const(Int24ub, 0),
     Embedded(Switch(this.version, {
         0: Struct("item_ID" / Int16ub),
-        1: Struct("item_ID" / Int32ub,
+        1: Struct("item_ID" / Int32ub),
     })),
 )
 
@@ -701,7 +701,7 @@ ProducerReferenceTimeBox = Struct(
     "ntp_timestamp" / Int64ub,
     Embedded(Switch(this.version, {
         0: Struct( "media_time" / Int32ub),
-        1: Struct("media_time" / Int64ub),
+        1: Struct( "media_time" / Int64ub),
     })),
 )
 
@@ -731,6 +731,7 @@ TrackSampleFlags = BitStruct(
     "sample_is_non_sync_sample" / Default(Flag, False),
     "sample_degradation_priority" / Default(BitsInteger(16), 0),
 )
+
 
 TrackRunBox = Struct(
     "type" / Const(b"trun"),
@@ -1215,14 +1216,15 @@ def find_samples_progressive(trak_box):
     else:
         return None 
 
-
-
-# find samples in case of progressive mp4
-def find_samples_fragmented(ftyp_box, movie_box, movie_fragment_box):
-
-    sample_count = 0
-    samples = []
-
+###################################################################################
+#     find sample times and offsets in case of fragmented/segmented mp4
+#                           limitations 
+#                   edit list only 1 or 2 entries
+#              single traf box only per movie fragment
+#                    only default base is moof
+# ################################################################################# 
+def find_samples_fragmented(movie_box, movie_fragment_box, supress_flags=False):
+     
     if movie_fragment_box == None: 
         print("no movie fragment box given")
         return None
@@ -1230,51 +1232,229 @@ def find_samples_fragmented(ftyp_box, movie_box, movie_fragment_box):
     if movie_box == None: 
         print("error no movie box given")
         return None
+    
+    mvhd = find_child_box_by_type(movie_box, b"mvhd")
+    if mvhd == None :
+        print("error moviebox does not containe movieheaderbox")
+        return
 
     movie_fragment_size = movie_fragment_box["end"] - movie_fragment_box["offset"]
+    movie_timescale = mvhd["timescale"]
+
+    ## find trak and trex
+    mvex = find_child_box_by_type(movie_box, b"mvex")  
+    trex_boxes = []
+    trak_boxes = []
+
+    if(mvex != None):
+        for child in mvex["children"]: 
+           if child == None:
+               print("none")
+           
+           if child["type"] == b"trex":
+               trex_boxes.append(child)
     
-    ## right now assume single track per segment
-    trex = find_child_box_by_type(movie_box, b"trex")   
-    ## unsigned int(32)	track_ID 
-    ## unsigned int(32)	default_sample_description_index;
-	## unsigned int(32)	default_sample_duration; 
-    ## unsigned int(32)	default_sample_size; 
-    ## unsigned int(32)	default_sample_flags;
+    for child2 in movie_box["children"]: 
+        if child2 != None:
+            if child2["type"] == b"trak":
+                trak_boxes.append(child2)
+
     
-    mehd = find_child_box_by_type(movie_box, b"mehd")
-    ## default "fragment_duration"
-    
-    elst = find_child_box_by_type(movie_box, b"elst")
-    ## shifts composition to media presentation timeline 
-    
+    ## get information from trak boxes
+    track_infos = []
+
+    for trak in trak_boxes:
+        
+        # use trakheader and mdhd to find id and timescales
+        track_info = dict()
+
+        mdhd = find_child_box_by_type(trak, b"mdhd")
+        tkhd = find_child_box_by_type(trak, b"tkhd")
+        elst = find_child_box_by_type(trak, b"elst")
+        
+        if tkhd != None: 
+           track_info["track_ID"] = tkhd["track_ID"]
+
+        if mdhd != None: 
+           track_info["timescale"] =  mdhd["timescale"]
+        
+        track_info["edit_composition_offset"] = 0 ## default edit composition
+        if elst != None:
+
+            ## shifts composition to media presentation timeline
+            if len(elst["entries"]) > 2: 
+                print ("error current version of verify only supports up to two edit list entries")
+                return
+        
+            ## 1 entry empty
+            if(len(elst["entries"]) == 1):
+                if( elst["entries"][0]["media_time"] == -1):
+                    print("error the last edit is an empty edit, not supported in this version of verify")
+
+            ## single edit assume it is a naive shift
+            track_info["edit_composition_offset"] = - elst["entries"][0]["media_time"]
+        
+            ## two edits, only support with first edit being the emtpy edit
+            if(len(elst["entries"]) == 2):
+                ## single edit
+                if( -1 == elst["entries"][0]["media_time"]):
+                    track_info["edit_composition_offset"] = \
+                         elst["entries"][0]["edit_duration"] - elst["entries"][1]["media_time"]
+        
+        track_infos.append(track_info)
+
+
     traf_boxes = [] 
-    for traf_box in movie_fragment_box: 
-        if traf_box[b"type"] == "traf":
+
+    for traf_box in movie_fragment_box["children"]: 
+        if traf_box["type"] == b"traf":
             traf_boxes.append(traf_box)
     
-    if len(traf_boxes) == 0):
-        print "error no traf box in movie fragment"
+    if len(traf_boxes) == 0:
+        print("error no traf box in movie fragment, current verify version only supports one or more")
         return None
 
     elif len(traf_boxes) > 1:
-        print "error only single traf box supported by validator, multiple traf boxes found"
+        print ("error only single traf box supported by current verify version, multiple traf boxes found")
         return None
-    
-    # in first version only check the single traf box
-    elif len(traf_boxes) == 1:
-        trf = traf_boxes[0]
-        tfhd = find_child_box_by_type( trf, b"mehd")
 
+    ## in this first version we only check the single traf box
+    elif len(traf_boxes) == 1:
+        
+        ## find the track fragment header
+        tfhd = find_child_box_by_type(traf_boxes[0], b"tfhd")
+        
+        if(tfhd == None):
+            print("error no track fragment header ")
+            return None
+
+        tfdt = find_child_box_by_type(traf_boxes[0], b"tfdt")
+        
+        if(tfdt == None):
+            print("error current verify version only supports fragments with tfdt box")
+            return None
+
+        ## duration is empty
         if(tfhd["flags"]["duration_is_empty"]):
             print("fragment duration is empty, returning empty list")
             return [] 
-        elif(not(tfhd["flags"]["base-data-offset-present"] == 0 and tfhd[flags]["default-base-is-moof "] == 1)):
-            print("error this version only supports default base is moof == 1 and base-data-offset-present==0")
+        
+        ## default base is moof is currently only supported mode (iso 5 brand or higer), todo update for base data offsets
+        elif( not(tfhd["flags"]["default_base_is_moof"] == 1)): 
+            print("error this verify version only supports default base is moof == 1 and base-data-offset-present==0")
             return None 
-         
-          
+        
+        ## find the track if 
+        track_id = tfhd["track_ID"]
 
-         trun = find_child_box_by_type( trf, b"trun")
-         if(trun == None):
+        l_defs = dict(track_ID=0,default_sample_description_index=0 , \
+        default_sample_duration=0 , default_sample_size=0, trex_found=0)
+        
+        for i in range(len(track_infos)):
+            if "track_ID" in track_infos[i]:
+                if track_id == track_infos[i]["track_ID"]:
+                    l_defs["track_id_found"] = True
+                    l_defs["timescale"] = track_infos[i]["timescale"] 
+                    l_defs["track_ID"] = track_infos[i]["track_ID"] 
+                    l_defs["edit_composition_offset"] = track_infos[i]["edit_composition_offset"] \
+                        * track_infos[i]["timescale"] / movie_timescale
+         
+        if( "track_id_found"not in  l_defs):
+            print("error track id not found")
+            print(track_infos)
+            return
+         
+        ## find the default values from trex (track defaults)
+        for trex_box in trex_boxes:
+            if(trex_box["track_ID"] == track_id):
+                l_defs["trex_found"] = 1
+                l_defs["default_sample_description_index"] = trex_box["default_sample_description_index"]
+                l_defs["default_sample_duration"] = trex_box["default_sample_duration"]
+                l_defs["default_sample_size"] = trex_box["default_sample_size"]
+                l_defs["track_sample_flags"] = trex_box["default_sample_flags"] ## track sample flags 
+             
+        
+        ##  overwrite by segment defaults from tfhd 
+        if(tfhd["flags"]["sample_description_index_present"]):
+            l_defs["default_sample_description_index"] = tfhd["sample_description_index"]
+        if(tfhd["flags"]["default_sample_duration_present"]):
+            l_defs["default_sample_duration"] = tfhd["default_sample_duration"]
+        if(tfhd["flags"]["default_sample_size_present"]):
+            l_defs["default_sample_size"] = tfhd = ["default_sample_size"]
+        if(tfhd["flags"]["default_sample_flags_present"]):
+            l_defs["track_sample_flags"] = tfhd["default_sample_flags"]
+        if(tfhd["flags"]["base_data_offset_present"] == 1): 
+             l_defs["data_offset"] = tfhd["base_data_offset"]
+        else: 
+             l_defs["data_offset"] = 0
+
+        ##  initial values
+        decode_time = tfdt["baseMediaDecodeTime"]
+        offset_moof = l_defs["data_offset"]
+        offset_mdat = l_defs["data_offset"] - movie_fragment_size
+        
+        ## find the trun box 
+        trun = find_child_box_by_type(traf_boxes[0], b"trun")
+
+        ## in current version having a trun box is mandatory
+        if(trun == None):
+            print("error this verify version only supports having a trun box in a media segment")
+            return None 
+        
+
+        # parse trun for decode time, comp time , size , duration, flags, offset 
+        
+        sample_count = trun["sample_count"]
+        print ("the number of samples is: ", sample_count)
+        samples = []
+
+        if trun["flags"]["data_offset_present"]:
+            offset_mdat += trun["data_offset"] 
+            offset_moof += trun["data_offset"]
+
+        for i in range (sample_count):
+            
+            sample = dict( \
+            decode_time=decode_time, \
+            composition_time=decode_time, \
+            presentation_time=decode_time + l_defs["edit_composition_offset"],  \
+            duration=l_defs["default_sample_duration"], \
+            size=l_defs["default_sample_size"], \
+            offset_moof=offset_moof, \
+            offset_mdat=offset_mdat,  \
+            time_scale=l_defs["timescale"]) 
+            if not(supress_flags):
+                sample["flags"]=l_defs["track_sample_flags"]
+            
+            if trun["flags"]["sample_duration_present"]:
+                sample["duration"]  = trun["sample_info"][i]["sample_duration"]
+            if trun["flags"]["sample_size_present"]:
+                sample["size"]  = trun["sample_info"][i]["sample_size"]
+            if trun["flags"]["sample_composition_time_offsets_present"]:
+                sample["composition_time"]  = decode_time + trun["sample_info"][i]["sample_composition_time_offsets"]
+                sample["presentation_time"] = l_defs["edit_composition_offset"] + sample["composition_time"]
+            if not(supress_flags):
+               if trun["flags"]["sample_flags_present"]: 
+                  sample["flags"] = trun["sample_info"][i]["sample_flags"]
+               if i == 0 and trun["flags"]["first_sample_flags_present"] :
+                  sample["flags"] =  trun["first_sample_flags"]
+            
+            samples.append(sample)
+
+            decode_time += sample["duration"] 
+            offset_mdat += sample["size"] 
+            offset_moof += sample["size"]
+
+        return samples 
+
+    else: 
+        print("error current version of verify only supports single trun box per track fragment box")
+        return None
+
+       
+
+
+        
+
 
     

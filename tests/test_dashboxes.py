@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-   Copyright 2016 beardypig
+   Copyright 2021 CodeShop B.V.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,17 +14,37 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-# import logging
-# import unittest
-# from uuid import UUID
+import logging
+import unittest
+import io
+from uuid import UUID
 
-# from construct import Container
-# from pymp4.parser import Box
+from construct import Container
+from pymp4.parser import Box
+from pymp4.parser import find_samples_fragmented
 
-# log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
-# class BoxTests(unittest.TestCase):
+class SegmentTests(unittest.TestCase):
+    
+    def test_parse_video_samples(self): 
+       infile = open( '3.cmfv','rb')
+       moov_box = []
+       moof_box  = []
+       for i in range(5):
+          t = Box.parse_stream(infile)
+          if(t["type"] == b"moov"):
+              moov_box = t 
+          if(t["type"] == b"moof"):
+              moof_box = t 
+       res = find_samples_fragmented(moov_box, moof_box, 1)
+       self.assertEqual(res[0]["decode_time"], 12288) 
+       self.assertEqual(res[1]["decode_time"], 12800)
+       self.assertEqual(res[2]["decode_time"], 13312)
+       self.assertEqual(res[0]["offset_mdat"], 8) 
+       self.assertEqual(res[1]["offset_mdat"], 2223)
+       self.assertEqual(res[2]["offset_mdat"], 2400)
 #     def test_tenc_parse(self):
 #         self.assertEqual(
 #             Box.parse(b'\x00\x00\x00 tenc\x00\x00\x00\x00\x00\x00\x01\x083{\x96C!\xb6CU\x9eY>\xcc\xb4l~\xf7'),
