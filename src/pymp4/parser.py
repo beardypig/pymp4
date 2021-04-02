@@ -215,12 +215,12 @@ XMLSubtitleSampleEntry = Struct(
 
 WebVTTConfigurationBox = Struct(
     "type" / Const(b'vttC'),
-    "config" / CString()
+    "config" / Default(GreedyBytes, b"")
 )
 
 WebVTTSourceLabelBox = Struct(
     "type" / Const(b'vlab') ,
-    "source_label" / CString(encoding="utf-8")
+    "source_label" / Default(GreedyBytes, b"")
 )
 
 WVTTSampleEntry = Struct(
@@ -399,15 +399,18 @@ EditListBox = Struct(
         0: Struct( "entries" / PrefixedArray(Int32ub, Struct(
         "edit_duration" / Int32ub,
         "media_time" / Int32ub,
+        "media_rate_integer" /  Int16sb,
+        "media_rate_fraction" / Default(Int16sb,0)
         ))),
         1: Struct( "entries" / PrefixedArray(Int32ub, Struct(
         "edit_duration" / Int64ub,
         "media_time" / Int64ub,
+        "media_rate_integer" /  Int16sb,
+        "media_rate_fraction" / Default(Int16sb,0)
         ))
         ),
     })),
-    "media_rate_integer" / Int16sb,
-    "media_rate_fraction" / Int16sb,
+ 
 )
 
 CompositionOffsetBox = Struct(
@@ -1079,22 +1082,22 @@ CueSourceIDBox = Struct(
 
 CueTimeBox = Struct(
      "type"  / Const(b'ctim'),
-     "cue_current_time" / CString(encoding="utf-8")
+     "cue_current_time" / Default(GreedyBytes, b"")
 )
 
 CueIDBox = Struct(
    "type" / Const(b'iden'),
-   "cue_id"/ CString(encoding="utf-8")
+   "cue_id"/ Default(GreedyBytes, b"")
 )
 
 CueSettingsBox = Struct(
      "type"/ Const(b'sttg'),
-     "settings"/ CString(encoding="utf-8")
+     "settings"/ Default(GreedyBytes, b"")
 )
 
 CuePayLoadBox = Struct(
      "type"/ Const(b'pay1'),
-     "cue_text"/ CString(encoding="utf-8")
+     "cue_text"/  Default(GreedyBytes, b"")
 )
 
 VTTEmptyCueBox = Struct(
@@ -1103,7 +1106,7 @@ VTTEmptyCueBox = Struct(
 
 VTTAdditionalTextBox = Struct(
      "type" / Const(b'vtta'), 
-     "cue_additional_text" / CString(encoding="utf-8") 
+     "cue_additional_text" / Default(GreedyBytes, b"")
 )
 
 
