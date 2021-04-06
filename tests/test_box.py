@@ -319,21 +319,22 @@ class BoxTests(unittest.TestCase):
         self.assertEqual(len(elst_b["entries"]), 1)
         self.assertEqual(elst_b["entries"][0]["edit_duration"], 4000)
         self.assertEqual(elst_b["entries"][0]["media_time"], 1024)
-        self.assertEqual(elst_b["media_rate_integer"], 1)
-        self.assertEqual(elst_b["media_rate_fraction"], 0)
+        self.assertEqual(elst_b["entries"][0]["media_rate_integer"], 1)
+        self.assertEqual(elst_b["entries"][0]["media_rate_fraction"], 0)
 
         t = dict(
              type=b"elst",
              version=1,
              flags=0,
-             entries=[dict(edit_duration=1,media_time=1),dict(edit_duration=2,media_time=2)],
-             media_rate_integer=1,
-             media_rate_fraction=1, 
+             entries=[dict(edit_duration=1,media_time=1, media_rate_integer=1, media_rate_fraction=1)\
+                 ,dict(edit_duration=2,media_time=2, media_rate_integer=1,
+             media_rate_fraction=1)  ],
+             
             )
         elst_b = Box.build(t)
         t2 = Box.parse(elst_b)
         self.assertEqual(len(t["entries"]), len(t2["entries"]))
-        self.assertEqual(t["media_rate_integer"], t2["media_rate_integer"] )
+        #self.assertEqual(t["media_rate_integer"], t2["media_rate_integer"] )
 
 class SampleTests(unittest.TestCase):
 
