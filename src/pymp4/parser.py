@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-   Copyright 2016 beardypig, codeshop B.V
+   Copyright 2016 beardypig
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -398,15 +398,15 @@ EditListBox = Struct(
     Embedded(Switch(this.version, {
         0: Struct( "entries" / PrefixedArray(Int32ub, Struct(
         "edit_duration" / Int32ub,
-        "media_time" / Int32ub,
+        "media_time" / Int32sb,
         "media_rate_integer" /  Int16sb,
-        "media_rate_fraction" / Default(Int16sb,0)
+        "media_rate_fraction" / Int16sb,
         ))),
         1: Struct( "entries" / PrefixedArray(Int32ub, Struct(
         "edit_duration" / Int64ub,
         "media_time" / Int64ub,
         "media_rate_integer" /  Int16sb,
-        "media_rate_fraction" / Default(Int16sb,0)
+        "media_rate_fraction" / Int16sb,
         ))
         ),
     })),
@@ -1277,12 +1277,44 @@ def find_samples_progressive(trak_box):
             for z in range(a["sample_count"]):
                 current_time = current_time + a["sample_delta"]
                 samples.append( { 'decode_time': current_time } )
+        
+        ctts_sample = 0
+        if ctts != None: 
+            for entry in ctts["entries"]:
+                for i in entry["sample_count"]: 
+                    samples[ctts_sample]["composition_time"] = samples[ctts_sample]["decode_time"] + entry["sample_offset"]
+                    ctts_sample+=1
 
-        if ctts != None: ## composition times not yet supported
-            print("composition times not yet supported")
+        # edit lists only partially supported
+        if elst != None:
+            edit_offset = 0
 
-        if elst != None: ## composition times not yet supported
-            print("edit list not yet supported")
+            ## shifts composition to media presentation timeline
+            if len(elst["entries"]) > 2: 
+                print ("error current version of validator only supports up to two edit list entries")
+                return None
+        
+            ## 1 entry empty
+            if(len(elst["entries"]) == 1):
+                if( elst["entries"][0]["media_time"] == -1):
+                    print("error the last edit is an empty edit, not supported in this version of verify")
+                    return None
+
+                ## single edit assume it is a naive shift
+                edit_offset = - elst["entries"][0]["media_time"]
+        
+            ## two edits, only support with first edit being the emtpy edit
+            if(len(elst["entries"]) == 2):
+                ## single edit
+                if( -1 == elst["entries"][0]["media_time"]):
+                    edit_offset  = \
+                         elst["entries"][0]["edit_duration"] - elst["entries"][1]["media_time"]
+            
+            for k in range(samples):
+                if "composition_time" in sample[k]:
+                    sample[k]["presentation_time"] = sample[k]["composition_time"] + edit_offset
+                else:
+                    sample[k]["decode_time"] = sample[k]["composition_time"] + edit_offset
 
         if stsz["sample_size"] == 0:
             for a in range(stsz.sample_count):
