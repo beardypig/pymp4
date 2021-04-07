@@ -1248,14 +1248,36 @@ def find_child_box_by_type(parent_box, box_type):
 
 
 # find samples in case of progressive mp4
-def find_samples_progressive(trak_box):
+def find_samples_progressive(trak_box, moov_box=None):
     
     sample_count = 0
     samples = []
 
+
     # edit list and sample table 
-    stbl = find_child_box_by_type(trak_box, b"stbl")
+    
     elst = find_child_box_by_type(trak_box, b"elst")
+    mdhd = find_child_box_by_type(trak_box, b"mdhd")
+    stbl = find_child_box_by_type(trak_box, b"stbl")
+    
+    if(mdhd == None):
+        print("error mdhd not found")
+        return None
+
+    # in case no moview header default to track header (warning this is not always ok)
+    trak_timescale = mdhd["timescale"]
+    movie_timescale = mdhd["timescale"]
+    
+    if moov_box == None: 
+        print("error no movie box given, using trak timescale instead of movie timescale")    
+    else:
+        mvhd = find_child_box_by_type(moov_box, b"mvhd")
+        if mvhd == None :
+           print("error moviebox does not contain movieheaderbox")
+           return None
+        else:
+           movie_timescale = mvhd["timescale"]
+        
 
     if stbl != None:
         # children of sample table
@@ -1310,11 +1332,11 @@ def find_samples_progressive(trak_box):
                     edit_offset  = \
                          elst["entries"][0]["edit_duration"] - elst["entries"][1]["media_time"]
             
-            for k in range(samples):
-                if "composition_time" in sample[k]:
-                    sample[k]["presentation_time"] = sample[k]["composition_time"] + edit_offset
+            for k in range(len(samples)):
+                if "composition_time" in samples[k]:
+                    sample[k]["presentation_time"] = samples[k]["composition_time"] + edit_offset * trak_timescale / movie_timescale
                 else:
-                    sample[k]["decode_time"] = sample[k]["composition_time"] + edit_offset
+                    samples[k]["presentation_time"] = samples[k]["decode_time"] + edit_offset * trak_timescale / movie_timescale
 
         if stsz["sample_size"] == 0:
             for a in range(stsz.sample_count):
@@ -1437,14 +1459,14 @@ def find_samples_fragmented(movie_box, movie_fragment_box, supress_flags=False):
                     print("error the last edit is an empty edit, not supported in this version of verify")
 
             ## single edit assume it is a naive shift
-            track_info["edit_composition_offset"] = - elst["entries"][0]["media_time"]
+            track_info["edit_composition_offset"] = - elst["entries"][0]["media_time"] 
         
             ## two edits, only support with first edit being the emtpy edit
             if(len(elst["entries"]) == 2):
                 ## single edit
                 if( -1 == elst["entries"][0]["media_time"]):
                     track_info["edit_composition_offset"] = \
-                         elst["entries"][0]["edit_duration"] - elst["entries"][1]["media_time"]
+                         (elst["entries"][0]["edit_duration"] - elst["entries"][1]["media_time"]) 
         
         track_infos.append(track_info)
 
