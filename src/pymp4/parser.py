@@ -805,7 +805,7 @@ TrackRunBox = Struct(
     ),
     "sample_count" / Int32ub,
     "data_offset" / Default(If(this.flags.data_offset_present, Int32sb), None),
-    "first_sample_flags" / Default(If(this.flags.first_sample_flags_present, Int32ub), None),
+    "first_sample_flags" / Default(If(this.flags.first_sample_flags_present, TrackSampleFlags), None),
     "sample_info" / Array(this.sample_count, Struct(
         "sample_duration" / If(this._.flags.sample_duration_present, Int32ub),
         "sample_size" / If(this._.flags.sample_size_present, Int32ub),
@@ -1234,6 +1234,7 @@ BoxClass = type(Box)
 # simple helper for recursive box search
 def find_child_box_by_type(parent_box, box_type):
     res = None
+    
     if (parent_box["type"] == box_type):
         return parent_box
     else:
