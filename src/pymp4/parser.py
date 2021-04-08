@@ -604,7 +604,7 @@ AVC1SampleEntryBox = Struct(
             b"hvcC": HVCC,
         }, Struct("data" / GreedyBytes)))
     )),
-    "sample_info" / LazyBound(lambda _: GreedyRange(Box))
+    "children" / LazyBound(lambda _: GreedyRange(Box))
 )
 
 SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
@@ -630,7 +630,7 @@ BitRateBox = Struct(
     "type" / Const(b"btrt"),
     "bufferSizeDB" / Int32ub,
     "maxBitrate" / Int32ub,
-    "avgBirate" / Int32ub,
+    "avgBitrate" / Int32ub,
 )
 
 SampleDescriptionBox = Struct(
