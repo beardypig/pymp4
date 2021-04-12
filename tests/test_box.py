@@ -20,8 +20,7 @@ import unittest
 
 from construct import Container
 from pymp4.parser import Box
-from pymp4.parser import find_child_box_by_type
-from pymp4.parser import find_samples_progressive
+from pymp4.util import BoxUtil
 
 log = logging.getLogger(__name__)
 
@@ -216,19 +215,19 @@ class BoxTests(unittest.TestCase):
     def test_parse_stbl_progressive(self):
         stbl = Box.parse(l_stbl_audio_4s) 
         self.assertNotEqual(stbl, None)
-        stsd = find_child_box_by_type(stbl,b'stsd')
+        stsd = BoxUtil.find_and_return_first(stbl,b'stsd')
         self.assertEqual(len(stsd["entries"]), 1) 
         self.assertEqual(stsd["entries"][0]["format"], b"mp4a")
         mp4a = stsd["entries"][0] 
         self.assertEqual(mp4a["channels"], 2) 
         self.assertEqual(mp4a["sampling_rate"], 48000) 
-        stsz = find_child_box_by_type(stbl,b'stsz')
+        stsz = BoxUtil.find_and_return_first(stbl,b'stsz')
         self.assertNotEqual(stsz, None)
         self.assertEqual(stsz["sample_count"],189)
-        stco = find_child_box_by_type(stbl,b'stco')
+        stco = BoxUtil.find_and_return_first(stbl,b'stco')
         self.assertNotEqual(stco, None)
         self.assertEqual(len(stco["entries"]),1)
-        stts = find_child_box_by_type(stbl,b'stts')
+        stts = BoxUtil.find_and_return_first(stbl,b'stts')
         self.assertNotEqual(stts, None)
         self.assertEqual(len(stts["entries"]),2)
 
@@ -341,7 +340,7 @@ class SampleTests(unittest.TestCase):
     def test_parse_stbl_parse_samples_progressive(self):
 
         moov_a = Box.parse(l_movie_box_audio)
-        res = find_samples_progressive(moov_a , moov_a)
+        res = BoxUtil.find_samples_progressive(moov_a , moov_a)
 
         self.assertEqual(len(res), 189)
         #self.assertEqual(res[0], {'decode_time': 1024, 'size': 23, 'chunk': 1, 'chunk_offset': 44, 'offset': 44})

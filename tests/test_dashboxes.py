@@ -21,7 +21,7 @@ from uuid import UUID
 
 from construct import Container
 from pymp4.parser import Box
-from pymp4.parser import find_samples_fragmented
+from pymp4.util import BoxUtil
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class SegmentTests(unittest.TestCase):
               moov_box = t 
           if(t["type"] == b"moof"):
               moof_box = t 
-       res = find_samples_fragmented(moov_box, moof_box, 1)
+       res = BoxUtil.find_samples_fragmented(moov_box, moof_box, 1)
        self.assertEqual(res[0]["decode_time"], 12288) 
        self.assertEqual(res[1]["decode_time"], 12800)
        self.assertEqual(res[2]["decode_time"], 13312)
