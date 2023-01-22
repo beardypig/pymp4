@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 class BoxUtil(object):
     @classmethod
     def first(cls, box, type_):
+        if box.type == type_:
+            return box
         if hasattr(box, "children"):
             for sbox in box.children:
                 try:
@@ -32,8 +34,6 @@ class BoxUtil(object):
                 except BoxNotFound:
                     # ignore the except when the box is not found in sub-boxes
                     pass
-        elif box.type == type_:
-            return box
 
         raise BoxNotFound("could not find box of type: {}".format(type_))
 
