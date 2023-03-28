@@ -27,8 +27,10 @@ srcdir = join(dirname(abspath(__file__)), "src/")
 sys_path.insert(0, srcdir)
 
 setup(name="pymp4",
-      version="1.3.0",
+      version="1.3.2",
       description="A Python parser for MP4 boxes",
+      long_description_content_type="text/markdown",
+      long_description="# pymp4",
       url="https://github.com/beardypig/pymp4",
       author="beardypig",
       author_email="git@beardypig.com",
