@@ -27,12 +27,14 @@ class BoxTests(unittest.TestCase):
     def test_ftyp_parse(self):
         self.assertEqual(
             Box.parse(b'\x00\x00\x00\x18ftypiso5\x00\x00\x00\x01iso5avc1'),
-            Container(offset=0)
-            (type="ftyp")
-            (major_brand="iso5")
-            (minor_version=1)
-            (compatible_brands=["iso5", "avc1"])
-            (end=24)
+            Container(
+                offset=0,
+                type="ftyp",
+                major_brand="iso5",
+                minor_version=1,
+                compatible_brands=["iso5", "avc1"],
+                end=24
+            )
         )
 
     def test_ftyp_build(self):
@@ -46,16 +48,19 @@ class BoxTests(unittest.TestCase):
 
     def test_mdhd_parse(self):
         self.assertEqual(
-            Box.parse(
-                b'\x00\x00\x00\x20mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0fB@\x00\x00\x00\x00U\xc4\x00\x00'),
-            Container(offset=0)
-            (type="mdhd")(version=0)(flags=0)
-            (creation_time=0)
-            (modification_time=0)
-            (timescale=1000000)
-            (duration=0)
-            (language="und")
-            (end=32)
+            Box.parse(b'\x00\x00\x00\x20mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0fB@\x00\x00\x00\x00U\xc4\x00\x00'),
+            Container(
+                offset=0,
+                type="mdhd",
+                version=0,
+                flags=0,
+                creation_time=0,
+                modification_time=0,
+                timescale=1000000,
+                duration=0,
+                language="und",
+                end=32
+            )
         )
 
     def test_mdhd_build(self):
@@ -84,11 +89,11 @@ class BoxTests(unittest.TestCase):
 
     def test_moov_build(self):
         moov = \
-            Container(type="moov")(children=[  # 96 bytes
-                Container(type="mvex")(children=[  # 88 bytes
-                    Container(type="mehd")(version=0)(flags=0)(fragment_duration=0),  # 16 bytes
-                    Container(type="trex")(track_ID=1),  # 32 bytes
-                    Container(type="trex")(track_ID=2),  # 32 bytes
+            Container(type="moov", children=[  # 96 bytes
+                Container(type="mvex", children=[  # 88 bytes
+                    Container(type="mehd", version=0, flags=0, fragment_duration=0),  # 16 bytes
+                    Container(type="trex", track_ID=1),  # 32 bytes
+                    Container(type="trex", track_ID=2),  # 32 bytes
                 ])
             ])
 
@@ -108,9 +113,15 @@ class BoxTests(unittest.TestCase):
         in_bytes = b'\x00\x00\x00\x10smhd\x00\x00\x00\x00\x00\x00\x00\x00'
         self.assertEqual(
             Box.parse(in_bytes + b'padding'),
-            Container(offset=0)
-            (type="smhd")(version=0)(flags=0)
-            (balance=0)(reserved=0)(end=len(in_bytes))
+            Container(
+                offset=0,
+                type="smhd",
+                version=0,
+                flags=0,
+                balance=0,
+                reserved=0,
+                end=len(in_bytes)
+            )
         )
 
     def test_smhd_build(self):
@@ -125,8 +136,14 @@ class BoxTests(unittest.TestCase):
         in_bytes = b'\x00\x00\x00\x50stsd\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x40tx3g\x00\x00\x00\x00\x00\x00\x00\x01' + tx3g_data
         self.assertEqual(
             Box.parse(in_bytes + b'padding'),
-            Container(offset=0)
-            (type="stsd")(version=0)(flags=0)
-            (entries=[Container(format="tx3g")(data_reference_index=1)(data=tx3g_data)])
-            (end=len(in_bytes))
+            Container(
+                offset=0,
+                type="stsd",
+                version=0,
+                flags=0,
+                entries=[
+                    Container(format='tx3g', data_reference_index=1, data=tx3g_data)
+                ],
+                end=len(in_bytes)
+            )
         )

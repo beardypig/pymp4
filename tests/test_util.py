@@ -26,39 +26,56 @@ log = logging.getLogger(__name__)
 
 
 class BoxTests(unittest.TestCase):
-    box_data = Container(type="demo")(children=[
-            Container(type="a   ")(id=1),
-            Container(type="b   ")(id=2),
-            Container(type="c   ")(children=[
-                Container(type="a   ")(id=3),
-                Container(type="b   ")(id=4),
-            ]),
-            Container(type="d   ")(id=5),
-        ])
+    box_data = Container(
+        type="demo",
+        children=[
+            Container(type="a   ", id=1),
+            Container(type="b   ", id=2),
+            Container(
+                type="c   ",
+                children=[
+                    Container(type="a   ", id=3),
+                    Container(type="b   ", id=4)
+                ]
+            ),
+            Container(type="d   ", id=5)
+        ]
+    )
 
-    box_extended_data = Container(type="test")(children=[
-        Container(type="a   ")(id=1, extended_type=b"e--a"),
-        Container(type="b   ")(id=2, extended_type=b"e--b"),
-    ])
+    box_extended_data = Container(
+        type="test",
+        children=[
+            Container(
+                type="a   ",
+                id=1,
+                extended_type=b"e--a"
+            ),
+            Container(
+                type="b   ",
+                id=2,
+                extended_type=b"e--b"
+            )
+        ]
+    )
 
     def test_find(self):
         self.assertListEqual(
             list(BoxUtil.find(self.box_data, "b   ")),
-            [Container(type="b   ")(id=2), Container(type="b   ")(id=4)]
+            [Container(type="b   ", id=2), Container(type="b   ", id=4)]
         )
 
     def test_find_after_nest(self):
         self.assertListEqual(
             list(BoxUtil.find(self.box_data, "d   ")),
-            [Container(type="d   ")(id=5)]
+            [Container(type="d   ", id=5)]
         )
 
     def test_find_nested_type(self):
         self.assertListEqual(
             list(BoxUtil.find(self.box_data, "c   ")),
-            [Container(type="c   ")(children=[
-                Container(type="a   ")(id=3),
-                Container(type="b   ")(id=4),
+            [Container(type="c   ", children=[
+                Container(type="a   ", id=3),
+                Container(type="b   ", id=4),
             ])]
         )
 
@@ -71,7 +88,7 @@ class BoxTests(unittest.TestCase):
     def test_first(self):
         self.assertEqual(
             BoxUtil.first(self.box_data, "b   "),
-            Container(type="b   ")(id=2)
+            Container(type="b   ", id=2)
         )
 
     def test_first_missing(self):
@@ -83,5 +100,5 @@ class BoxTests(unittest.TestCase):
     def test_find_extended(self):
         self.assertListEqual(
             list(BoxUtil.find_extended(self.box_extended_data, b"e--a")),
-            [Container(type="a   ")(id=1, extended_type=b"e--a")]
+            [Container(type="a   ", id=1, extended_type=b"e--a")]
         )
