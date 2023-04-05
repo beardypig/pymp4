@@ -177,13 +177,13 @@ HDSFragmentRunBox = Struct(
 # Boxes contained by Media Box
 
 class ISO6392TLanguageCode(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         """
         Get the python representation of the obj
         """
         return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         """
         Get the bytes representation of the obj
         """
@@ -271,10 +271,10 @@ MP4ASampleEntryBox = Struct(
 
 
 class MaskedInteger(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         return obj & 0x1F
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         return obj & 0x1F
 
 
@@ -619,10 +619,10 @@ SoundMediaHeaderBox = Struct(
 # DASH Boxes
 
 class UUIDBytes(Adapter):
-    def _decode(self, obj, context):
+    def _decode(self, obj, context, path):
         return UUID(bytes=obj)
 
-    def _encode(self, obj, context):
+    def _encode(self, obj, context, path):
         return obj.bytes
 
 
