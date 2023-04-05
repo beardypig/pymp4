@@ -136,9 +136,9 @@ MovieHeaderBox = Struct(
     "rate" / Default(Int32sb, 65536),
     "volume" / Default(Int16sb, 256),
     # below could be just Padding(10) but why not
-    Const(Int16ub, 0),
-    Const(Int32ub, 0),
-    Const(Int32ub, 0),
+    Const(0, Int16ub),
+    Const(0, Int32ub),
+    Const(0, Int32ub),
     "matrix" / Default(Int32sb[9], UNITY_MATRIX),
     "pre_defined" / Default(Int32ub[6], [0] * 6),
     "next_track_ID" / Default(Int32ub, 0xffffffff)
@@ -248,7 +248,7 @@ class ISO6392TLanguageCode(Adapter):
 MediaHeaderBox = Struct(
     "type" / Const(b"mdhd"),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "creation_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "timescale" / Int32ub,
@@ -262,8 +262,8 @@ MediaHeaderBox = Struct(
 
 HandlerReferenceBox = Struct(
     "type" / Const(b"hdlr"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     Padding(4, pattern=b"\x00"),
     "handler_type" / PaddedString(4, "ascii"),
     Padding(12, pattern=b"\x00"),  # Int32ub[3]
@@ -275,7 +275,7 @@ HandlerReferenceBox = Struct(
 VideoMediaHeaderBox = Struct(
     "type" / Const(b"vmhd"),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 1),
+    "flags" / Const(1, Int24ub),
     "graphics_mode" / Default(Int16ub, 0),
     "opcolor" / Struct(
         "red" / Default(Int16ub, 0),
@@ -286,7 +286,7 @@ VideoMediaHeaderBox = Struct(
 
 DataEntryUrlBox = PrefixedIncludingSize(Int32ub, Struct(
     "type" / Const(b"url "),
-    "version" / Const(Int8ub, 0),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~this._.location)
     ),
@@ -295,7 +295,7 @@ DataEntryUrlBox = PrefixedIncludingSize(Int32ub, Struct(
 
 DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
     "type" / Const(b"urn "),
-    "version" / Const(Int8ub, 0),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~(this._.name & this._.location))
     ),
@@ -305,7 +305,7 @@ DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
 
 DataReferenceBox = Struct(
     "type" / Const(b"dref"),
-    "version" / Const(Int8ub, 0),
+    "version" / Const(0, Int8ub),
     "flags" / Default(Int24ub, 0),
     "data_entries" / PrefixedArray(Int32ub, Select(DataEntryUrnBox, DataEntryUrlBox)),
 )
@@ -314,12 +314,12 @@ DataReferenceBox = Struct(
 
 MP4ASampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
-    "revision" / Const(Int16ub, 0),
-    "vendor" / Const(Int32ub, 0),
+    "revision" / Const(0, Int16ub),
+    "vendor" / Const(0, Int32ub),
     "channels" / Default(Int16ub, 2),
     "bits_per_sample" / Default(Int16ub, 16),
     "compression_id" / Default(Int16sb, 0),
-    "packet_size" / Const(Int16ub, 0),
+    "packet_size" / Const(0, Int16ub),
     "sampling_rate" / Int16ub,
     Padding(2)
 )
@@ -334,7 +334,7 @@ class MaskedInteger(Adapter):
 
 
 AAVC = Struct(
-    "version" / Const(Int8ub, 1),
+    "version" / Const(1, Int8ub),
     "profile" / Int8ub,
     "compatibility" / Int8ub,
     "level" / Int8ub,
@@ -348,7 +348,7 @@ AAVC = Struct(
 
 HVCC = Struct(
     EmbeddedBitStruct(
-        "version" / Const(BitsInteger(8), 1),
+        "version" / Const(1, BitsInteger(8)),
         "profile_space" / BitsInteger(2),
         "general_tier_flag" / BitsInteger(1),
         "general_profile" / BitsInteger(5),
@@ -377,7 +377,7 @@ HVCC = Struct(
 
 AVC1SampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
-    "revision" / Const(Int16ub, 0),
+    "revision" / Const(0, Int16ub),
     "vendor" / Default(PaddedString(4, "ascii"), "brdy"),
     "temporal_quality" / Default(Int32ub, 0),
     "spatial_quality" / Default(Int32ub, 0),
@@ -387,7 +387,7 @@ AVC1SampleEntryBox = Struct(
     Padding(2),
     "vertical_resolution" / Default(Int16ub, 72),  # TODO: actually a fixed point decimal
     Padding(2),
-    "data_size" / Const(Int32ub, 0),
+    "data_size" / Const(0, Int32ub),
     "frame_count" / Default(Int16ub, 1),
     "compressor_name" / Default(PaddedString(32, "ascii"), None),
     "depth" / Default(Int16ub, 24),
@@ -425,14 +425,14 @@ BitRateBox = Struct(
 SampleDescriptionBox = Struct(
     "type" / Const(b"stsd"),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "entries" / PrefixedArray(Int32ub, SampleEntryBox)
 )
 
 SampleSizeBox = Struct(
     "type" / Const(b"stsz"),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "sample_size" / Int32ub,
     "sample_count" / Int32ub,
     "entry_sizes" / If(this.sample_size == 0, Array(this.sample_count, Int32ub))
@@ -441,7 +441,7 @@ SampleSizeBox = Struct(
 SampleSizeBox2 = Struct(
     "type" / Const(b"stz2"),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     Padding(3, pattern=b"\x00"),
     "field_size" / Int8ub,
     "sample_count" / Int24ub,
@@ -452,14 +452,14 @@ SampleSizeBox2 = Struct(
 
 SampleDegradationPriorityBox = Struct(
     "type" / Const(b"stdp"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
 )
 
 TimeToSampleBox = Struct(
     "type" / Const(b"stts"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_count" / Int32ub,
         "sample_delta" / Int32ub,
@@ -468,8 +468,8 @@ TimeToSampleBox = Struct(
 
 SyncSampleBox = Struct(
     "type" / Const(b"stss"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "sample_number" / Int32ub,
     )), [])
@@ -477,8 +477,8 @@ SyncSampleBox = Struct(
 
 SampleToChunkBox = Struct(
     "type" / Const(b"stsc"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "first_chunk" / Int32ub,
         "samples_per_chunk" / Int32ub,
@@ -488,8 +488,8 @@ SampleToChunkBox = Struct(
 
 ChunkOffsetBox = Struct(
     "type" / Const(b"stco"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / Default(PrefixedArray(Int32ub, Struct(
         "chunk_offset" / Int32ub,
     )), [])
@@ -497,8 +497,8 @@ ChunkOffsetBox = Struct(
 
 ChunkLargeOffsetBox = Struct(
     "type" / Const(b"co64"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "entries" / PrefixedArray(Int32ub, Struct(
         "chunk_offset" / Int64ub,
     ))
@@ -508,15 +508,15 @@ ChunkLargeOffsetBox = Struct(
 
 MovieFragmentHeaderBox = Struct(
     "type" / Const(b"mfhd"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "sequence_number" / Int32ub
 )
 
 TrackFragmentBaseMediaDecodeTimeBox = Struct(
     "type" / Const(b"tfdt"),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "baseMediaDecodeTime" / Switch(this.version, {1: Int64ub, 0: Int32ub})
 )
 
@@ -585,7 +585,7 @@ TrackFragmentHeaderBox = Struct(
 MovieExtendsHeaderBox = Struct(
     "type" / Const(b"mehd"),
     "version" / Default(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "fragment_duration" / IfThenElse(this.version == 1,
                                      Default(Int64ub, 0),
                                      Default(Int32ub, 0))
@@ -593,8 +593,8 @@ MovieExtendsHeaderBox = Struct(
 
 TrackExtendsBox = Struct(
     "type" / Const(b"trex"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "track_ID" / Int32ub,
     "default_sample_description_index" / Default(Int32ub, 1),
     "default_sample_duration" / Default(Int32ub, 0),
@@ -605,7 +605,7 @@ TrackExtendsBox = Struct(
 SegmentIndexBox = Struct(
     "type" / Const(b"sidx"),
     "version" / Int8ub,
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "reference_ID" / Int32ub,
     "timescale" / Int32ub,
     "earliest_presentation_time" / IfThenElse(this.version == 0, Int32ub, Int64ub),
@@ -624,7 +624,7 @@ SegmentIndexBox = Struct(
 
 SampleAuxiliaryInformationSizesBox = Struct(
     "type" / Const(b"saiz"),
-    "version" / Const(Int8ub, 0),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23),
         "has_aux_info_type" / Flag,
@@ -664,10 +664,10 @@ MovieDataBox = Struct(
 
 SoundMediaHeaderBox = Struct(
     "type" / Const(b"smhd"),
-    "version" / Const(Int8ub, 0),
-    "flags" / Const(Int24ub, 0),
+    "version" / Const(0, Int8ub),
+    "flags" / Const(0, Int24ub),
     "balance" / Default(Int16sb, 0),
-    "reserved" / Const(Int16ub, 0)
+    "reserved" / Const(0, Int16ub)
 )
 
 
@@ -684,7 +684,7 @@ class UUIDBytes(Adapter):
 ProtectionSystemHeaderBox = Struct(
     "type" / If(this._.type != "uuid", Const(b"pssh")),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
-    "flags" / Const(Int24ub, 0),
+    "flags" / Const(0, Int24ub),
     "system_ID" / UUIDBytes(Bytes(16)),
     "key_IDs" / Default(If(this.version == 1,
                            PrefixedArray(Int32ub, UUIDBytes(Bytes(16)))),
@@ -696,8 +696,8 @@ TrackEncryptionBox = Struct(
     "type" / If(this._.type != "uuid", Const(b"tenc")),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "_reserved0" / Const(Int8ub, 0),
-    "_reserved1" / Const(Int8ub, 0),
+    "_reserved0" / Const(0, Int8ub),
+    "_reserved1" / Const(0, Int8ub),
     "is_encrypted" / Int8ub,
     "iv_size" / Int8ub,
     "key_ID" / UUIDBytes(Bytes(16)),
@@ -710,7 +710,7 @@ TrackEncryptionBox = Struct(
 
 SampleEncryptionBox = Struct(
     "type" / If(this._.type != "uuid", Const(b"senc")),
-    "version" / Const(Int8ub, 0),
+    "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(22),
         "has_subsample_encryption_info" / Flag,
