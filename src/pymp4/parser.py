@@ -136,11 +136,11 @@ HDSSegmentBox = Struct(
     "time_scale" / Int32ub,
     "current_media_time" / Int64ub,
     "smpte_time_code_offset" / Int64ub,
-    "movie_identifier" / CString(),
-    "server_entry_table" / PrefixedArray(Int8ub, CString()),
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
-    "drm_data" / CString(),
-    "metadata" / CString(),
+    "movie_identifier" / CString("ascii"),
+    "server_entry_table" / PrefixedArray(Int8ub, CString("ascii")),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString("ascii")),
+    "drm_data" / CString("ascii"),
+    "metadata" / CString("ascii"),
     "segment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box)),
     "fragment_run_table" / PrefixedArray(Int8ub, LazyBound(lambda x: Box))
 )
@@ -149,7 +149,7 @@ HDSSegmentRunBox = Struct(
     "type" / Const(b"asrt"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString("ascii")),
     "segment_run_enteries" / PrefixedArray(Int32ub, Struct(
         "first_segment" / Int32ub,
         "fragments_per_segment" / Int32ub
@@ -164,7 +164,7 @@ HDSFragmentRunBox = Struct(
         "update" / Flag
     ),
     "time_scale" / Int32ub,
-    "quality_entry_table" / PrefixedArray(Int8ub, CString()),
+    "quality_entry_table" / PrefixedArray(Int8ub, CString("ascii")),
     "fragment_run_enteries" / PrefixedArray(Int32ub, Struct(
         "first_fragment" / Int32ub,
         "first_fragment_timestamp" / Int64ub,
@@ -212,7 +212,7 @@ HandlerReferenceBox = Struct(
     Padding(4, pattern=b"\x00"),
     "handler_type" / PaddedString(4, "ascii"),
     Padding(12, pattern=b"\x00"),  # Int32ub[3]
-    "name" / CString(encoding="utf8")
+    "name" / CString("utf8")
 )
 
 # Boxes contained by Media Info Box
@@ -235,7 +235,7 @@ DataEntryUrlBox = Prefixed(Int32ub, Struct(
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~this._.location)
     ),
-    "location" / If(~this.flags.self_contained, CString(encoding="utf8")),
+    "location" / If(~this.flags.self_contained, CString("utf8")),
 ), includelength=True)
 
 DataEntryUrnBox = Prefixed(Int32ub, Struct(
@@ -244,8 +244,8 @@ DataEntryUrnBox = Prefixed(Int32ub, Struct(
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~(this._.name & this._.location))
     ),
-    "name" / If(this.flags == 0, CString(encoding="utf8")),
-    "location" / If(this.flags == 0, CString(encoding="utf8")),
+    "name" / If(this.flags == 0, CString("utf8")),
+    "location" / If(this.flags == 0, CString("utf8")),
 ), includelength=True)
 
 DataReferenceBox = Struct(
@@ -287,8 +287,8 @@ AAVC = Struct(
         Padding(6, pattern=b'\x01'),
         "nal_unit_length_field" / Default(BitsInteger(2), 3),
     ),
-    "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub)), []),
-    "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub)), [])
+    "sps" / Default(PrefixedArray(MaskedInteger(Int8ub), PascalString(Int16ub, "ascii")), []),
+    "pps" / Default(PrefixedArray(Int8ub, PascalString(Int16ub, "ascii")), [])
 )
 
 HVCC = Struct(
@@ -682,7 +682,7 @@ SchemeTypeBox = Struct(
     "flags" / Default(Int24ub, 0),
     "scheme_type" / Default(PaddedString(4, "ascii"), "cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
-    "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
+    "schema_uri" / Default(If(this.flags & 1 == 1, CString("ascii")), None)
 )
 
 ProtectionSchemeInformationBox = Struct(
