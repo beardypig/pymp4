@@ -33,14 +33,17 @@ files = [
 
 [[package]]
 name = "construct"
-version = "2.8.8"
-description = "A powerful declarative parser/builder for binary data"
+version = "2.10.68"
+description = "A powerful declarative symmetric parser/builder for binary data"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6"
 files = [
-    {file = "construct-2.8.8.tar.gz", hash = "sha256:1b84b8147f6fd15bcf64b737c3e8ac5100811ad80c830cb4b2545140511c4157"},
+    {file = "construct-2.10.68.tar.gz", hash = "sha256:7b2a3fd8e5f597a5aa1d614c3bd516fa065db01704c72a1efaaeec6ef23d8b45"},
 ]
+
+[package.extras]
+extras = ["arrow", "cloudpickle", "enum34", "lz4", "numpy", "ruamel.yaml"]
 
 [[package]]
 name = "coverage"
@@ -275,4 +278,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4.0"
-content-hash = "9a2baac6978e2ce64197980dda6b562347469f581c3881b1fe9d59432d47bc51"
+content-hash = "fc4ee9dd83c675556d17d4c93f297cc1c9dc13f756645b08b15155585b2ee984"

@@ -24,7 +24,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
-construct = "2.8.8"
+construct = "2.10.68"
 
 [tool.poetry.group.dev.dependencies]
 coverage = { version="^7.2.3", extras=["toml"] }
