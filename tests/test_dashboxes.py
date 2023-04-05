@@ -35,6 +35,7 @@ class BoxTests(unittest.TestCase):
             (is_encrypted=1)
             (iv_size=8)
             (key_ID=UUID('337b9643-21b6-4355-9e59-3eccb46c7ef7'))
+            (constant_iv=None)
             (end=32)
         )
 
