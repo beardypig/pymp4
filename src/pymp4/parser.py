@@ -84,22 +84,22 @@ class PrefixedIncludingSize(Subconstruct):
 
 FileTypeBox = Struct(
     "type" / Const(b"ftyp"),
-    "major_brand" / String(4),
+    "major_brand" / PaddedString(4, "ascii"),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, "ascii")),
 )
 
 SegmentTypeBox = Struct(
     "type" / Const(b"styp"),
-    "major_brand" / String(4),
+    "major_brand" / PaddedString(4, "ascii"),
     "minor_version" / Int32ub,
-    "compatible_brands" / GreedyRange(String(4)),
+    "compatible_brands" / GreedyRange(PaddedString(4, "ascii")),
 )
 
 # Catch find boxes
 
 RawBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, "ascii"),
     "data" / Default(GreedyBytes, b"")
 )
 
@@ -265,7 +265,7 @@ HandlerReferenceBox = Struct(
     "version" / Const(Int8ub, 0),
     "flags" / Const(Int24ub, 0),
     Padding(4, pattern=b"\x00"),
-    "handler_type" / String(4),
+    "handler_type" / PaddedString(4, "ascii"),
     Padding(12, pattern=b"\x00"),  # Int32ub[3]
     "name" / CString(encoding="utf8")
 )
@@ -378,7 +378,7 @@ HVCC = Struct(
 AVC1SampleEntryBox = Struct(
     "version" / Default(Int16ub, 0),
     "revision" / Const(Int16ub, 0),
-    "vendor" / Default(String(4, padchar=b" "), b"brdy"),
+    "vendor" / Default(PaddedString(4, "ascii"), "brdy"),
     "temporal_quality" / Default(Int32ub, 0),
     "spatial_quality" / Default(Int32ub, 0),
     "width" / Int16ub,
@@ -389,29 +389,29 @@ AVC1SampleEntryBox = Struct(
     Padding(2),
     "data_size" / Const(Int32ub, 0),
     "frame_count" / Default(Int16ub, 1),
-    "compressor_name" / Default(String(32, padchar=b" "), ""),
+    "compressor_name" / Default(PaddedString(32, "ascii"), None),
     "depth" / Default(Int16ub, 24),
     "color_table_id" / Default(Int16sb, -1),
     "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+        "type" / PaddedString(4, "ascii"),
         Embedded(Switch(this.type, {
-            b"avcC": AAVC,
-            b"hvcC": HVCC,
+            "avcC": AAVC,
+            "hvcC": HVCC,
         }, Struct("data" / GreedyBytes)))
     )),
     "sample_info" / LazyBound(lambda _: GreedyRange(Box))
 )
 
 SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
-    "format" / String(4, padchar=b" ", paddir="right"),
+    "format" / PaddedString(4, "ascii"),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
     Embedded(Switch(this.format, {
-        b"ec-3": MP4ASampleEntryBox,
-        b"mp4a": MP4ASampleEntryBox,
-        b"enca": MP4ASampleEntryBox,
-        b"avc1": AVC1SampleEntryBox,
-        b"encv": AVC1SampleEntryBox
+        "ec-3": MP4ASampleEntryBox,
+        "mp4a": MP4ASampleEntryBox,
+        "enca": MP4ASampleEntryBox,
+        "avc1": AVC1SampleEntryBox,
+        "encv": AVC1SampleEntryBox
     }, Struct("data" / GreedyBytes)))
 ))
 
@@ -682,7 +682,7 @@ class UUIDBytes(Adapter):
 
 
 ProtectionSystemHeaderBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"pssh")),
+    "type" / If(this._.type != "uuid", Const(b"pssh")),
     "version" / Rebuild(Int8ub, lambda ctx: 1 if (hasattr(ctx, "key_IDs") and ctx.key_IDs) else 0),
     "flags" / Const(Int24ub, 0),
     "system_ID" / UUIDBytes(Bytes(16)),
@@ -693,7 +693,7 @@ ProtectionSystemHeaderBox = Struct(
 )
 
 TrackEncryptionBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"tenc")),
+    "type" / If(this._.type != "uuid", Const(b"tenc")),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
     "_reserved0" / Const(Int8ub, 0),
@@ -709,7 +709,7 @@ TrackEncryptionBox = Struct(
 )
 
 SampleEncryptionBox = Struct(
-    "type" / If(this._.type != b"uuid", Const(b"senc")),
+    "type" / If(this._.type != "uuid", Const(b"senc")),
     "version" / Const(Int8ub, 0),
     "flags" / BitStruct(
         Padding(22),
@@ -728,14 +728,14 @@ SampleEncryptionBox = Struct(
 
 OriginalFormatBox = Struct(
     "type" / Const(b"frma"),
-    "original_format" / Default(String(4), b"avc1")
+    "original_format" / Default(PaddedString(4, "ascii"), "avc1")
 )
 
 SchemeTypeBox = Struct(
     "type" / Const(b"schm"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    "scheme_type" / Default(String(4), b"cenc"),
+    "scheme_type" / Default(PaddedString(4, "ascii"), "cenc"),
     "scheme_version" / Default(Int32ub, 0x00010000),
     "schema_uri" / Default(If(this.flags & 1 == 1, CString()), None)
 )
@@ -778,67 +778,67 @@ class TellMinusSizeOf(Subconstruct):
 
 Box = PrefixedIncludingSize(Int32ub, Struct(
     "offset" / TellMinusSizeOf(Int32ub),
-    "type" / Peek(String(4, padchar=b" ", paddir="right")),
+    "type" / Peek(PaddedString(4, "ascii")),
     Embedded(Switch(this.type, {
-        b"ftyp": FileTypeBox,
-        b"styp": SegmentTypeBox,
-        b"mvhd": MovieHeaderBox,
-        b"moov": ContainerBoxLazy,
-        b"moof": ContainerBoxLazy,
-        b"mfhd": MovieFragmentHeaderBox,
-        b"tfdt": TrackFragmentBaseMediaDecodeTimeBox,
-        b"trun": TrackRunBox,
-        b"tfhd": TrackFragmentHeaderBox,
-        b"traf": ContainerBoxLazy,
-        b"mvex": ContainerBoxLazy,
-        b"mehd": MovieExtendsHeaderBox,
-        b"trex": TrackExtendsBox,
-        b"trak": ContainerBoxLazy,
-        b"mdia": ContainerBoxLazy,
-        b"tkhd": TrackHeaderBox,
-        b"mdat": MovieDataBox,
-        b"free": FreeBox,
-        b"skip": SkipBox,
-        b"mdhd": MediaHeaderBox,
-        b"hdlr": HandlerReferenceBox,
-        b"minf": ContainerBoxLazy,
-        b"vmhd": VideoMediaHeaderBox,
-        b"dinf": ContainerBoxLazy,
-        b"dref": DataReferenceBox,
-        b"stbl": ContainerBoxLazy,
-        b"stsd": SampleDescriptionBox,
-        b"stsz": SampleSizeBox,
-        b"stz2": SampleSizeBox2,
-        b"stts": TimeToSampleBox,
-        b"stss": SyncSampleBox,
-        b"stsc": SampleToChunkBox,
-        b"stco": ChunkOffsetBox,
-        b"co64": ChunkLargeOffsetBox,
-        b"smhd": SoundMediaHeaderBox,
-        b"sidx": SegmentIndexBox,
-        b"saiz": SampleAuxiliaryInformationSizesBox,
-        b"saio": SampleAuxiliaryInformationOffsetsBox,
-        b"btrt": BitRateBox,
+        "ftyp": FileTypeBox,
+        "styp": SegmentTypeBox,
+        "mvhd": MovieHeaderBox,
+        "moov": ContainerBoxLazy,
+        "moof": ContainerBoxLazy,
+        "mfhd": MovieFragmentHeaderBox,
+        "tfdt": TrackFragmentBaseMediaDecodeTimeBox,
+        "trun": TrackRunBox,
+        "tfhd": TrackFragmentHeaderBox,
+        "traf": ContainerBoxLazy,
+        "mvex": ContainerBoxLazy,
+        "mehd": MovieExtendsHeaderBox,
+        "trex": TrackExtendsBox,
+        "trak": ContainerBoxLazy,
+        "mdia": ContainerBoxLazy,
+        "tkhd": TrackHeaderBox,
+        "mdat": MovieDataBox,
+        "free": FreeBox,
+        "skip": SkipBox,
+        "mdhd": MediaHeaderBox,
+        "hdlr": HandlerReferenceBox,
+        "minf": ContainerBoxLazy,
+        "vmhd": VideoMediaHeaderBox,
+        "dinf": ContainerBoxLazy,
+        "dref": DataReferenceBox,
+        "stbl": ContainerBoxLazy,
+        "stsd": SampleDescriptionBox,
+        "stsz": SampleSizeBox,
+        "stz2": SampleSizeBox2,
+        "stts": TimeToSampleBox,
+        "stss": SyncSampleBox,
+        "stsc": SampleToChunkBox,
+        "stco": ChunkOffsetBox,
+        "co64": ChunkLargeOffsetBox,
+        "smhd": SoundMediaHeaderBox,
+        "sidx": SegmentIndexBox,
+        "saiz": SampleAuxiliaryInformationSizesBox,
+        "saio": SampleAuxiliaryInformationOffsetsBox,
+        "btrt": BitRateBox,
         # dash
-        b"tenc": TrackEncryptionBox,
-        b"pssh": ProtectionSystemHeaderBox,
-        b"senc": SampleEncryptionBox,
-        b"sinf": ProtectionSchemeInformationBox,
-        b"frma": OriginalFormatBox,
-        b"schm": SchemeTypeBox,
-        b"schi": ContainerBoxLazy,
+        "tenc": TrackEncryptionBox,
+        "pssh": ProtectionSystemHeaderBox,
+        "senc": SampleEncryptionBox,
+        "sinf": ProtectionSchemeInformationBox,
+        "frma": OriginalFormatBox,
+        "schm": SchemeTypeBox,
+        "schi": ContainerBoxLazy,
         # piff
-        b"uuid": UUIDBox,
+        "uuid": UUIDBox,
         # HDS boxes
-        b'abst': HDSSegmentBox,
-        b'asrt': HDSSegmentRunBox,
-        b'afrt': HDSFragmentRunBox
+        "abst": HDSSegmentBox,
+        "asrt": HDSSegmentRunBox,
+        "afrt": HDSFragmentRunBox
     }, default=RawBox)),
     "end" / Tell
 ))
 
 ContainerBox = Struct(
-    "type" / String(4, padchar=b" ", paddir="right"),
+    "type" / PaddedString(4, "ascii"),
     "children" / GreedyRange(Box)
 )
 
