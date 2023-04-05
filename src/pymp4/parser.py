@@ -18,66 +18,11 @@ import logging
 from uuid import UUID
 
 from construct import *
-import construct.core
 from construct.lib import *
 
 log = logging.getLogger(__name__)
 
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
-
-
-class PrefixedIncludingSize(Subconstruct):
-    __slots__ = ["name", "lengthfield", "subcon"]
-
-    def __init__(self, lengthfield, subcon):
-        super(PrefixedIncludingSize, self).__init__(subcon)
-        self.lengthfield = lengthfield
-
-    def _parse(self, stream, context, path):
-        try:
-            lengthfield_size = self.lengthfield.sizeof()
-            length = self.lengthfield._parse(stream, context, path)
-        except SizeofError:
-            offset_start = stream.tell()
-            length = self.lengthfield._parse(stream, context, path)
-            lengthfield_size = stream.tell() - offset_start
-
-        stream2 = BoundBytesIO(stream, length - lengthfield_size)
-        obj = self.subcon._parse(stream2, context, path)
-        return obj
-
-    def _build(self, obj, stream, context, path):
-        try:
-            # needs to be both fixed size, seekable and tellable (third not checked)
-            self.lengthfield.sizeof()
-            if not stream.seekable:
-                raise SizeofError
-            offset_start = stream.tell()
-            self.lengthfield._build(0, stream, context, path)
-            self.subcon._build(obj, stream, context, path)
-            offset_end = stream.tell()
-            stream.seek(offset_start)
-            self.lengthfield._build(offset_end - offset_start, stream, context, path)
-            stream.seek(offset_end)
-        except SizeofError:
-            data = self.subcon.build(obj, context)
-            sl, p_sl = 0, 0
-            dlen = len(data)
-            # do..while
-            i = 0
-            while True:
-                i += 1
-                p_sl = sl
-                sl = len(self.lengthfield.build(dlen + sl))
-                if p_sl == sl: break
-
-                self.lengthfield._build(dlen + sl, stream, context, path)
-            else:
-                self.lengthfield._build(len(data), stream, context, path)
-            construct.core._write_stream(stream, len(data), data)
-
-    def _sizeof(self, context, path):
-        return self.lengthfield._sizeof(context, path) + self.subcon._sizeof(context, path)
 
 
 # Header box
@@ -284,16 +229,16 @@ VideoMediaHeaderBox = Struct(
     ),
 )
 
-DataEntryUrlBox = PrefixedIncludingSize(Int32ub, Struct(
+DataEntryUrlBox = Prefixed(Int32ub, Struct(
     "type" / Const(b"url "),
     "version" / Const(0, Int8ub),
     "flags" / BitStruct(
         Padding(23), "self_contained" / Rebuild(Flag, ~this._.location)
     ),
     "location" / If(~this.flags.self_contained, CString(encoding="utf8")),
-))
+), includelength=True)
 
-DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
+DataEntryUrnBox = Prefixed(Int32ub, Struct(
     "type" / Const(b"urn "),
     "version" / Const(0, Int8ub),
     "flags" / BitStruct(
@@ -301,7 +246,7 @@ DataEntryUrnBox = PrefixedIncludingSize(Int32ub, Struct(
     ),
     "name" / If(this.flags == 0, CString(encoding="utf8")),
     "location" / If(this.flags == 0, CString(encoding="utf8")),
-))
+), includelength=True)
 
 DataReferenceBox = Struct(
     "type" / Const(b"dref"),
@@ -392,17 +337,17 @@ AVC1SampleEntryBox = Struct(
     "compressor_name" / Default(PaddedString(32, "ascii"), None),
     "depth" / Default(Int16ub, 24),
     "color_table_id" / Default(Int16sb, -1),
-    "avc_data" / PrefixedIncludingSize(Int32ub, Struct(
+    "avc_data" / Prefixed(Int32ub, Struct(
         "type" / PaddedString(4, "ascii"),
         Embedded(Switch(this.type, {
             "avcC": AAVC,
             "hvcC": HVCC,
         }, Struct("data" / GreedyBytes)))
-    )),
+    ), includelength=True),
     "sample_info" / LazyBound(lambda _: GreedyRange(Box))
 )
 
-SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
+SampleEntryBox = Prefixed(Int32ub, Struct(
     "format" / PaddedString(4, "ascii"),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
@@ -413,7 +358,7 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         "avc1": AVC1SampleEntryBox,
         "encv": AVC1SampleEntryBox
     }, Struct("data" / GreedyBytes)))
-))
+), includelength=True)
 
 BitRateBox = Struct(
     "type" / Const(b"btrt"),
@@ -761,23 +706,8 @@ UUIDBox = Struct(
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
 
-class TellMinusSizeOf(Subconstruct):
-    def __init__(self, subcon):
-        super(TellMinusSizeOf, self).__init__(subcon)
-        self.flagbuildnone = True
-
-    def _parse(self, stream, context, path):
-        return stream.tell() - self.subcon.sizeof(context)
-
-    def _build(self, obj, stream, context, path):
-        return b""
-
-    def sizeof(self, context=None, **kw):
-        return 0
-
-
-Box = PrefixedIncludingSize(Int32ub, Struct(
-    "offset" / TellMinusSizeOf(Int32ub),
+Box = Prefixed(Int32ub, Struct(
+    "offset" / Tell,
     "type" / Peek(PaddedString(4, "ascii")),
     Embedded(Switch(this.type, {
         "ftyp": FileTypeBox,
@@ -835,7 +765,7 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         "afrt": HDSFragmentRunBox
     }, default=RawBox)),
     "end" / Tell
-))
+), includelength=True)
 
 ContainerBox = Struct(
     "type" / PaddedString(4, "ascii"),
