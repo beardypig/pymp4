@@ -17,7 +17,7 @@
 import logging
 import unittest
 
-from construct import Container
+from construct import Container, ListContainer
 from pymp4.parser import Box
 
 log = logging.getLogger(__name__)
@@ -89,13 +89,13 @@ class BoxTests(unittest.TestCase):
 
     def test_moov_build(self):
         moov = \
-            Container(type="moov", children=[  # 96 bytes
-                Container(type="mvex", children=[  # 88 bytes
+            Container(type="moov", children=ListContainer([  # 96 bytes
+                Container(type="mvex", children=ListContainer([  # 88 bytes
                     Container(type="mehd", version=0, flags=0, fragment_duration=0),  # 16 bytes
                     Container(type="trex", track_ID=1),  # 32 bytes
                     Container(type="trex", track_ID=2),  # 32 bytes
-                ])
-            ])
+                ]))
+            ]))
 
         moov_data = Box.build(moov)
 
@@ -141,9 +141,9 @@ class BoxTests(unittest.TestCase):
                 type="stsd",
                 version=0,
                 flags=0,
-                entries=[
+                entries=ListContainer([
                     Container(format='tx3g', data_reference_index=1, data=tx3g_data)
-                ],
+                ]),
                 end=len(in_bytes)
             )
         )
