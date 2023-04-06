@@ -651,7 +651,7 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
-ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
+ContainerBoxLazy = LazyBound(lambda: ContainerBox)
 
 
 Box = Prefixed(Int32ub, Struct(
