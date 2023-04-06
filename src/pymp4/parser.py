@@ -21,6 +21,7 @@ from construct import *
 from construct.lib import *
 
 from pymp4.adapters import ISO6392TLanguageCode, MaskedInteger, UUIDBytes
+from pymp4.subconstructs import TellPlusSizeOf
 
 log = logging.getLogger(__name__)
 
@@ -714,7 +715,7 @@ Box = Prefixed(Int32ub, Struct(
         "asrt": HDSSegmentRunBox,
         "afrt": HDSFragmentRunBox
     }, default=RawBox)),
-    "end" / Tell
+    "end" / TellPlusSizeOf(Int32ub)
 ), includelength=True)
 
 ContainerBox = Struct(
