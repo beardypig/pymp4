@@ -166,11 +166,8 @@ MediaHeaderBox = Struct(
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "timescale" / Int32ub,
     "duration" / IfThenElse(this.version == 1, Int64ub, Int32ub),
-    "flags" / BitStruct(
-        Padding(1),
-        "language" / ISO6392TLanguageCode(BitsInteger(5)[3]),
-    ),
-    Padding(2, pattern=b"\x00"),
+    "language" / ISO6392TLanguageCode(Int16ub),
+    Padding(2, pattern=b"\x00")
 )
 
 HandlerReferenceBox = Struct(

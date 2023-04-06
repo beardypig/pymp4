@@ -8,10 +8,18 @@ from construct import Adapter, int2byte
 
 class ISO6392TLanguageCode(Adapter, ABC):
     def _decode(self, obj, context, path):
-        return b"".join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
+        return "".join([
+            chr(bit + 0x60)
+            for bit in (
+                (obj >> 10) & 0b11111,
+                (obj >> 5) & 0b11111,
+                obj & 0b11111
+            )
+        ])
 
     def _encode(self, obj, context, path):
-        return [c - 0x60 for c in bytearray(obj.encode("utf8"))]
+        bits = [ord(c) - 0x60 for c in obj]
+        return (bits[0] << 10) | (bits[1] << 5) | bits[2]
 
 
 class MaskedInteger(Adapter, ABC):
