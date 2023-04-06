@@ -108,7 +108,7 @@ HDSSegmentBox = Struct(
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
     "info_version" / Int32ub,
-    EmbeddedBitStruct(
+    "flags" / BitStruct(
         Padding(1),
         "profile" / Flag,
         "live" / Flag,
@@ -166,10 +166,10 @@ MediaHeaderBox = Struct(
     "modification_time" / IfThenElse(this.version == 1, Int64ub, Int32ub),
     "timescale" / Int32ub,
     "duration" / IfThenElse(this.version == 1, Int64ub, Int32ub),
-    Embedded(BitStruct(
+    "flags" / BitStruct(
         Padding(1),
         "language" / ISO6392TLanguageCode(BitsInteger(5)[3]),
-    )),
+    ),
     Padding(2, pattern=b"\x00"),
 )
 
@@ -242,7 +242,7 @@ AAVC = Struct(
     "profile" / Int8ub,
     "compatibility" / Int8ub,
     "level" / Int8ub,
-    EmbeddedBitStruct(
+    "flags" / BitStruct(
         Padding(6, pattern=b'\x01'),
         "nal_unit_length_field" / Default(BitsInteger(2), 3),
     ),
@@ -251,8 +251,8 @@ AAVC = Struct(
 )
 
 HVCC = Struct(
-    EmbeddedBitStruct(
-        "version" / Const(1, BitsInteger(8)),
+    "version" / Const(1, Int8ub),
+    "flags" / BitStruct(
         "profile_space" / BitsInteger(2),
         "general_tier_flag" / BitsInteger(1),
         "general_profile" / BitsInteger(5),
