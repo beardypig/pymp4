@@ -66,20 +66,10 @@ MovieHeaderBox = Struct(
     "type" / Const(b"mvhd"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 0),
-    Embedded(Switch(this.version, {
-        1: Struct(
-            "creation_time" / Default(Int64ub, 0),
-            "modification_time" / Default(Int64ub, 0),
-            "timescale" / Default(Int32ub, 10000000),
-            "duration" / Int64ub
-        ),
-        0: Struct(
-            "creation_time" / Default(Int32ub, 0),
-            "modification_time" / Default(Int32ub, 0),
-            "timescale" / Default(Int32ub, 10000000),
-            "duration" / Int32ub,
-        ),
-    })),
+    "creation_time" / Default(Switch(this.version, {0: Int32ub, 1: Int64ub}), 0),
+    "modification_time" / Default(Switch(this.version, {0: Int32ub, 1: Int64ub}), 0),
+    "timescale" / Default(Int32ub, 10000000),
+    "duration" / Switch(this.version, {0: Int32ub, 1: Int64ub}),
     "rate" / Default(Int32sb, 65536),
     "volume" / Default(Int16sb, 256),
     # below could be just Padding(10) but why not
@@ -97,22 +87,11 @@ TrackHeaderBox = Struct(
     "type" / Const(b"tkhd"),
     "version" / Default(Int8ub, 0),
     "flags" / Default(Int24ub, 1),
-    Embedded(Switch(this.version, {
-        1: Struct(
-            "creation_time" / Default(Int64ub, 0),
-            "modification_time" / Default(Int64ub, 0),
-            "track_ID" / Default(Int32ub, 1),
-            Padding(4),
-            "duration" / Default(Int64ub, 0),
-        ),
-        0: Struct(
-            "creation_time" / Default(Int32ub, 0),
-            "modification_time" / Default(Int32ub, 0),
-            "track_ID" / Default(Int32ub, 1),
-            Padding(4),
-            "duration" / Default(Int32ub, 0),
-        ),
-    })),
+    "creation_time" / Default(Switch(this.version, {0: Int32ub, 1: Int64ub}), 0),
+    "modification_time" / Default(Switch(this.version, {0: Int32ub, 1: Int64ub}), 0),
+    "track_ID" / Default(Int32ub, 1),
+    Padding(4),
+    "duration" / Default(Switch(this.version, {0: Int32ub, 1: Int64ub}), 0),
     Padding(8),
     "layer" / Default(Int16sb, 0),
     "alternate_group" / Default(Int16sb, 0),
