@@ -280,10 +280,10 @@ AVC1SampleEntryBox = Struct(
     "color_table_id" / Default(Int16sb, -1),
     "avc_data" / Prefixed(Int32ub, Struct(
         "type" / PaddedString(4, "ascii"),
-        Embedded(Switch(this.type, {
+        "data" / Switch(this.type, {
             "avcC": AAVC,
             "hvcC": HVCC,
-        }, Struct("data" / GreedyBytes)))
+        }, GreedyBytes)
     ), includelength=True),
     "sample_info" / LazyBound(lambda _: GreedyRange(Box))
 )
@@ -292,13 +292,13 @@ SampleEntryBox = Prefixed(Int32ub, Struct(
     "format" / PaddedString(4, "ascii"),
     Padding(6, pattern=b"\x00"),
     "data_reference_index" / Default(Int16ub, 1),
-    Embedded(Switch(this.format, {
+    "data" / Switch(this.format, {
         "ec-3": MP4ASampleEntryBox,
         "mp4a": MP4ASampleEntryBox,
         "enca": MP4ASampleEntryBox,
         "avc1": AVC1SampleEntryBox,
         "encv": AVC1SampleEntryBox
-    }, Struct("data" / GreedyBytes)))
+    }, GreedyBytes)
 ), includelength=True)
 
 BitRateBox = Struct(
@@ -614,7 +614,7 @@ ContainerBoxLazy = LazyBound(lambda: ContainerBox)
 Box = Prefixed(Int32ub, Struct(
     "offset" / Tell,
     "type" / PaddedString(4, "ascii"),
-    Embedded(Switch(this.type, {
+    "data" / Switch(this.type, {
         "ftyp": FileTypeBox,
         "styp": SegmentTypeBox,
         "mvhd": MovieHeaderBox,
@@ -668,7 +668,7 @@ Box = Prefixed(Int32ub, Struct(
         "abst": HDSSegmentBox,
         "asrt": HDSSegmentRunBox,
         "afrt": HDSFragmentRunBox
-    }, default=RawBox)),
+    }, default=RawBox),
     "end" / TellPlusSizeOf(Int32ub)
 ), includelength=True)
 
