@@ -20,6 +20,8 @@ from uuid import UUID
 from construct import *
 from construct.lib import *
 
+from pymp4.adapters import ISO6392TLanguageCode, MaskedInteger, UUIDBytes
+
 log = logging.getLogger(__name__)
 
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
@@ -176,20 +178,6 @@ HDSFragmentRunBox = Struct(
 
 # Boxes contained by Media Box
 
-class ISO6392TLanguageCode(Adapter):
-    def _decode(self, obj, context, path):
-        """
-        Get the python representation of the obj
-        """
-        return b''.join(map(int2byte, [c + 0x60 for c in bytearray(obj)])).decode("utf8")
-
-    def _encode(self, obj, context, path):
-        """
-        Get the bytes representation of the obj
-        """
-        return [c - 0x60 for c in bytearray(obj.encode("utf8"))]
-
-
 MediaHeaderBox = Struct(
     "type" / Const(b"mdhd"),
     "version" / Default(Int8ub, 0),
@@ -268,15 +256,6 @@ MP4ASampleEntryBox = Struct(
     "sampling_rate" / Int16ub,
     Padding(2)
 )
-
-
-class MaskedInteger(Adapter):
-    def _decode(self, obj, context, path):
-        return obj & 0x1F
-
-    def _encode(self, obj, context, path):
-        return obj & 0x1F
-
 
 AAVC = Struct(
     "version" / Const(1, Int8ub),
@@ -617,14 +596,6 @@ SoundMediaHeaderBox = Struct(
 
 
 # DASH Boxes
-
-class UUIDBytes(Adapter):
-    def _decode(self, obj, context, path):
-        return UUID(bytes=obj)
-
-    def _encode(self, obj, context, path):
-        return obj.bytes
-
 
 ProtectionSystemHeaderBox = Struct(
     "type" / If(this._.type != "uuid", Const(b"pssh")),
