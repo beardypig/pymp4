@@ -29,6 +29,6 @@ jobs:
     - name: Run tests
       run: poetry run pytest tests/
     - name: Run coverage
-      run: coverage run setup.py test
+      run: poetry run coverage run -m pytest tests/
     - name: Run codecov
       run: codecov
