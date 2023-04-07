@@ -27,7 +27,7 @@ jobs:
     - name: Install project
       run: poetry install
     - name: Run tests
-      run: python -m pytest tests/
+      run: poetry run pytest tests/
     - name: Run coverage
       run: coverage run setup.py test
     - name: Run codecov
