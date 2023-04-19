@@ -1,9 +1,13 @@
 # pymp4
-Python MP4 box parser and toolkit
 
-# Usage
+[![Build status](https://github.com/beardypig/pymp4/actions/workflows/ci.yml/badge.svg)](https://github.com/beardypig/pymp4/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/pymp4)](LICENSE)
+[![Python versions](https://img.shields.io/pypi/pyversions/pymp4)](https://pypi.org/project/pymp4)
+[![Coverage](https://codecov.io/gh/beardypig/pymp4/branch/master/graph/badge.svg)](https://app.codecov.io/github/beardypig/pymp4)
 
-`pymp4` is based on the excellent parsing library [construct](https://github.com/construct/construct).
+Python MP4 box parser and toolkit based on the [construct](https://github.com/construct/construct) library.
+
+## Usage
 
 ```python
 >>> from pymp4.parser import Box
@@ -27,3 +31,7 @@ Container:
         avc1
 
 ```
+
+## License
+
+[Apache License, Version 2.0](LICENSE)
