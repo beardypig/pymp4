@@ -710,11 +710,10 @@ TrackEncryptionBox = Struct(
     "is_encrypted" / OneOf(Int8ub, (0, 1)),
     "iv_size" / OneOf(Int8ub, (0, 8, 16)),
     "key_ID" / UUIDBytes(Bytes(16)),
-    "constant_iv" / Default(If(this.is_encrypted and this.iv_size == 0,
-                               PrefixedArray(Int8ub, Byte),
-                               ),
-                            None)
-
+    "constant_iv" / Default(If(
+        this.is_encrypted and this.iv_size == 0,
+        PrefixedArray(Int8ub, Byte)
+    ), None)
 )
 
 SampleEncryptionBox = Struct(
