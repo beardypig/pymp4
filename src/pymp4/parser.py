@@ -411,7 +411,8 @@ SampleEntryBox = PrefixedIncludingSize(Int32ub, Struct(
         b"mp4a": MP4ASampleEntryBox,
         b"enca": MP4ASampleEntryBox,
         b"avc1": AVC1SampleEntryBox,
-        b"encv": AVC1SampleEntryBox
+        b"encv": AVC1SampleEntryBox,
+        b"wvtt": Struct("children" / LazyBound(lambda ctx: GreedyRange(Box)))
     }, Struct("data" / GreedyBytes)))
 ))
 
@@ -758,6 +759,33 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
+# WebVTT boxes
+
+CueIDBox = Struct(
+    "type" / Const(b"iden"),
+    "cue_id" / GreedyString("utf8")
+)
+
+CueSettingsBox = Struct(
+    "type" / Const(b"sttg"),
+    "settings" / GreedyString("utf8")
+)
+
+CuePayloadBox = Struct(
+    "type" / Const(b"payl"),
+    "cue_text" / GreedyString("utf8")
+)
+
+WebVTTConfigurationBox = Struct(
+    "type" / Const(b"vttC"),
+    "config" / GreedyString("utf8")
+)
+
+WebVTTSourceLabelBox = Struct(
+    "type" / Const(b"vlab"),
+    "label" / GreedyString("utf8")
+)
+
 ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
 
 
@@ -832,7 +860,15 @@ Box = PrefixedIncludingSize(Int32ub, Struct(
         # HDS boxes
         b'abst': HDSSegmentBox,
         b'asrt': HDSSegmentRunBox,
-        b'afrt': HDSFragmentRunBox
+        b'afrt': HDSFragmentRunBox,
+        # WebVTT
+        b"vttC": WebVTTConfigurationBox,
+        b"vlab": WebVTTSourceLabelBox,
+        b"vttc": ContainerBoxLazy,
+        b"vttx": ContainerBoxLazy,
+        b"iden": CueIDBox,
+        b"sttg": CueSettingsBox,
+        b"payl": CuePayloadBox
     }, default=RawBox)),
     "end" / Tell
 ))
