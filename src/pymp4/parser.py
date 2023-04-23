@@ -696,8 +696,17 @@ TrackEncryptionBox = Struct(
     "type" / If(this._.type != b"uuid", Const(b"tenc")),
     "version" / Default(OneOf(Int8ub, (0, 1)), 0),
     "flags" / Default(Int24ub, 0),
-    "_reserved0" / Const(Int8ub, 0),
-    "_reserved1" / Const(Int8ub, 0),
+    "_reserved" / Const(Int8ub, 0),
+    "default_byte_blocks" / Default(IfThenElse(
+        this.version > 0,
+        BitStruct(
+            # count of encrypted blocks in the protection pattern, where each block is 16-bytes
+            "crypt" / Nibble,
+            # count of unencrypted blocks in the protection pattern
+            "skip" / Nibble
+        ),
+        Const(Int8ub, 0)
+    ), 0),
     "is_encrypted" / OneOf(Int8ub, (0, 1)),
     "iv_size" / OneOf(Int8ub, (0, 8, 16)),
     "key_ID" / UUIDBytes(Bytes(16)),
