@@ -321,7 +321,8 @@ MP4ASampleEntryBox = Struct(
     "compression_id" / Default(Int16sb, 0),
     "packet_size" / Const(Int16ub, 0),
     "sampling_rate" / Int16ub,
-    Padding(2)
+    Padding(2),
+    "sample_info" / LazyBound(lambda _: GreedyRange(Box))
 )
 
 
