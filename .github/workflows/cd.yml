@@ -1,4 +1,9 @@
 name: cd
+permissions:
+  contents: "write"
+  id-token: "write"
+  packages: "write"
+  pull-requests: "read"
 
 on:
   push:
@@ -20,7 +25,7 @@ jobs:
     - name: Build project
       run: python -m build
     - name: Upload wheel
-      uses: actions/upload-artifact@v2.2.4
+      uses: actions/upload-artifact@v3
       with:
         name: Python Wheel
         path: "dist/*.whl"
