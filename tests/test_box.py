@@ -104,6 +104,29 @@ class BoxTests(unittest.TestCase):
             b'\x00\x00\x00\x20trex\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         )
 
+    def test_senc_parse(self):
+        in_bytes = b'\x00\x00\x00\x18senc\x00\x00\x00\x00\x00\x00\x00\x01abcdefgh'
+        self.assertEqual(
+            Box.parse(in_bytes + b'padding'),
+            Container(offset=0)
+            (type=b"senc")(version=0)(flags=Container(has_subsample_encryption_info=False))
+            (sample_encryption_info=[
+                Container(iv=b'abcdefgh')
+            ])(end=len(in_bytes))
+        )
+
+        in_bytes = b'\x00\x00\x00\x20senc\x00\x00\x00\x02\x00\x00\x00\x01abcdefgh\x00\x01\x99\x88\x77\x66\x55\x44'
+        self.assertEqual(
+            Box.parse(in_bytes + b'padding'),
+            Container(offset=0)
+            (type=b"senc")(version=0)(flags=Container(has_subsample_encryption_info=True))
+            (sample_encryption_info=[
+                Container(iv=b'abcdefgh', subsample_encryption_info=[
+                    Container(clear_bytes=0x9988, cipher_bytes=0x77665544)
+                ])
+            ])(end=len(in_bytes))
+        )
+
     def test_smhd_parse(self):
         in_bytes = b'\x00\x00\x00\x10smhd\x00\x00\x00\x00\x00\x00\x00\x00'
         self.assertEqual(

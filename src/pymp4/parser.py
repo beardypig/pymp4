@@ -725,14 +725,16 @@ SampleEncryptionBox = Struct(
         "has_subsample_encryption_info" / Flag,
         Padding(1)
     ),
-    "sample_encryption_info" / PrefixedArray(Int32ub, Struct(
+    "sample_encryption_info" / IfThenElse(this.flags.has_subsample_encryption_info, PrefixedArray(Int32ub, Struct(
         "iv" / Bytes(8),
         # include the sub sample encryption information
-        "subsample_encryption_info" / Default(If(this.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
+        "subsample_encryption_info" / PrefixedArray(Int16ub, Struct(
             "clear_bytes" / Int16ub,
             "cipher_bytes" / Int32ub
-        ))), None)
-    ))
+        )),
+    )), PrefixedArray(Int32ub, Struct(
+        "iv" / Bytes(8),
+    ))),
 )
 
 OriginalFormatBox = Struct(
