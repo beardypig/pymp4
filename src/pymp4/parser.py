@@ -298,7 +298,7 @@ SampleEntryBox = Prefixed(Int32ub, Struct(
         "enca": MP4ASampleEntryBox,
         "avc1": AVC1SampleEntryBox,
         "encv": AVC1SampleEntryBox,
-        "wvtt": Struct("children" / LazyBound(lambda ctx: GreedyRange(Box)))
+        "wvtt": Struct("children" / LazyBound(lambda: GreedyRange(Box)))
     }, GreedyBytes)
 ), includelength=True)
 
@@ -552,7 +552,7 @@ ProtectionSystemHeaderBox = Struct(
 TrackEncryptionBox = Struct(
     "version" / Default(OneOf(Int8ub, (0, 1)), 0),
     "flags" / Default(Int24ub, 0),
-    "_reserved" / Const(Int8ub, 0),
+    "_reserved" / Const(0, Int8ub),
     "default_byte_blocks" / Default(IfThenElse(
         this.version > 0,
         BitStruct(
@@ -561,7 +561,7 @@ TrackEncryptionBox = Struct(
             # count of unencrypted blocks in the protection pattern
             "skip" / Nibble
         ),
-        Const(Int8ub, 0)
+        Const(0, Int8ub)
     ), 0),
     "is_encrypted" / OneOf(Int8ub, (0, 1)),
     "iv_size" / OneOf(Int8ub, (0, 8, 16)),
@@ -620,46 +620,26 @@ UUIDBox = Struct(
 # WebVTT boxes
 
 CueIDBox = Struct(
-    "type" / Const(b"iden"),
     "cue_id" / GreedyString("utf8")
 )
 
 CueSettingsBox = Struct(
-    "type" / Const(b"sttg"),
     "settings" / GreedyString("utf8")
 )
 
 CuePayloadBox = Struct(
-    "type" / Const(b"payl"),
     "cue_text" / GreedyString("utf8")
 )
 
 WebVTTConfigurationBox = Struct(
-    "type" / Const(b"vttC"),
     "config" / GreedyString("utf8")
 )
 
 WebVTTSourceLabelBox = Struct(
-    "type" / Const(b"vlab"),
     "label" / GreedyString("utf8")
 )
 
-ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
-
-
-class TellMinusSizeOf(Subconstruct):
-    def __init__(self, subcon):
-        super(TellMinusSizeOf, self).__init__(subcon)
-        self.flagbuildnone = True
-
-    def _parse(self, stream, context, path):
-        return stream.tell() - self.subcon.sizeof(context)
-
-    def _build(self, obj, stream, context, path):
-        return b""
-
-    def sizeof(self, context=None, **kw):
-        return 0
+ContainerBoxLazy = LazyBound(lambda: ContainerBox)
 
 
 Box = Prefixed(Int32ub, Struct(
