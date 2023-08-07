@@ -297,7 +297,8 @@ SampleEntryBox = Prefixed(Int32ub, Struct(
         "mp4a": MP4ASampleEntryBox,
         "enca": MP4ASampleEntryBox,
         "avc1": AVC1SampleEntryBox,
-        "encv": AVC1SampleEntryBox
+        "encv": AVC1SampleEntryBox,
+        "wvtt": Struct("children" / LazyBound(lambda ctx: GreedyRange(Box)))
     }, GreedyBytes)
 ), includelength=True)
 
@@ -549,18 +550,26 @@ ProtectionSystemHeaderBox = Struct(
 )
 
 TrackEncryptionBox = Struct(
-    "version" / Default(Int8ub, 0),
+    "version" / Default(OneOf(Int8ub, (0, 1)), 0),
     "flags" / Default(Int24ub, 0),
-    "_reserved0" / Const(0, Int8ub),
-    "_reserved1" / Const(0, Int8ub),
-    "is_encrypted" / Int8ub,
-    "iv_size" / Int8ub,
+    "_reserved" / Const(Int8ub, 0),
+    "default_byte_blocks" / Default(IfThenElse(
+        this.version > 0,
+        BitStruct(
+            # count of encrypted blocks in the protection pattern, where each block is 16-bytes
+            "crypt" / Nibble,
+            # count of unencrypted blocks in the protection pattern
+            "skip" / Nibble
+        ),
+        Const(Int8ub, 0)
+    ), 0),
+    "is_encrypted" / OneOf(Int8ub, (0, 1)),
+    "iv_size" / OneOf(Int8ub, (0, 8, 16)),
     "key_ID" / UUIDBytes(Bytes(16)),
-    "constant_iv" / Default(If(this.is_encrypted and this.iv_size == 0,
-                               PrefixedArray(Int8ub, Byte),
-                               ),
-                            None)
-
+    "constant_iv" / Default(If(
+        this.is_encrypted and this.iv_size == 0,
+        PrefixedArray(Int8ub, Byte)
+    ), None)
 )
 
 SampleEncryptionBox = Struct(
@@ -608,7 +617,49 @@ UUIDBox = Struct(
     }, GreedyBytes)
 )
 
-ContainerBoxLazy = LazyBound(lambda: ContainerBox)
+# WebVTT boxes
+
+CueIDBox = Struct(
+    "type" / Const(b"iden"),
+    "cue_id" / GreedyString("utf8")
+)
+
+CueSettingsBox = Struct(
+    "type" / Const(b"sttg"),
+    "settings" / GreedyString("utf8")
+)
+
+CuePayloadBox = Struct(
+    "type" / Const(b"payl"),
+    "cue_text" / GreedyString("utf8")
+)
+
+WebVTTConfigurationBox = Struct(
+    "type" / Const(b"vttC"),
+    "config" / GreedyString("utf8")
+)
+
+WebVTTSourceLabelBox = Struct(
+    "type" / Const(b"vlab"),
+    "label" / GreedyString("utf8")
+)
+
+ContainerBoxLazy = LazyBound(lambda ctx: ContainerBox)
+
+
+class TellMinusSizeOf(Subconstruct):
+    def __init__(self, subcon):
+        super(TellMinusSizeOf, self).__init__(subcon)
+        self.flagbuildnone = True
+
+    def _parse(self, stream, context, path):
+        return stream.tell() - self.subcon.sizeof(context)
+
+    def _build(self, obj, stream, context, path):
+        return b""
+
+    def sizeof(self, context=None, **kw):
+        return 0
 
 
 Box = Prefixed(Int32ub, Struct(
@@ -667,7 +718,15 @@ Box = Prefixed(Int32ub, Struct(
         # HDS boxes
         "abst": HDSSegmentBox,
         "asrt": HDSSegmentRunBox,
-        "afrt": HDSFragmentRunBox
+        "afrt": HDSFragmentRunBox,
+        # WebVTT
+        "vttC": WebVTTConfigurationBox,
+        "vlab": WebVTTSourceLabelBox,
+        "vttc": ContainerBoxLazy,
+        "vttx": ContainerBoxLazy,
+        "iden": CueIDBox,
+        "sttg": CueSettingsBox,
+        "payl": CuePayloadBox
     }, default=RawBox),
     "end" / TellPlusSizeOf(Int32ub)
 ), includelength=True)

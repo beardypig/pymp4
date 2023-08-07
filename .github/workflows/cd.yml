@@ -1,4 +1,9 @@
 name: cd
+permissions:
+  contents: "write"
+  id-token: "write"
+  packages: "write"
+  pull-requests: "read"
 
 on:
   push:
@@ -14,13 +19,17 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x'
-    - name: Install build
-      run: pip install build
+        python-version: '3.8.x'
+    - name: Install Poetry
+      uses: abatilo/actions-poetry@v2.3.0
+      with:
+        poetry-version: '1.4.1'
+    - name: Install dependencies
+      run: poetry install --no-dev
     - name: Build project
-      run: python -m build
+      run: poetry build
     - name: Upload wheel
-      uses: actions/upload-artifact@v2.2.4
+      uses: actions/upload-artifact@v3
       with:
         name: Python Wheel
         path: "dist/*.whl"
@@ -32,7 +41,6 @@ jobs:
         files: |
           dist/*.whl
     - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      env:
+        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+      run: poetry publish
