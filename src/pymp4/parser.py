@@ -728,7 +728,7 @@ SampleEncryptionBox = Struct(
     "sample_encryption_info" / PrefixedArray(Int32ub, Struct(
         "iv" / Bytes(8),
         # include the sub sample encryption information
-        "subsample_encryption_info" / Default(If(this.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
+        "subsample_encryption_info" / Default(If(this._.flags.has_subsample_encryption_info, PrefixedArray(Int16ub, Struct(
             "clear_bytes" / Int16ub,
             "cipher_bytes" / Int32ub
         ))), None)
